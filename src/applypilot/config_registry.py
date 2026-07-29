@@ -1,8 +1,8 @@
-"""Profile-aware loaders for package-shipped YAML registries.
+"""Profile-aware YAML registry loading.
 
-The loader preserves the current single-file behaviour by default. When a user
-selects ``search_profile`` or ``search_profiles`` in searches.yaml and the
-profile manifest exists, registry fragments are merged in manifest order.
+Package registries provide sensible defaults. A user can select one or more
+profiles in searches.yaml and override the resulting registry from
+``$APPLYPILOT_DIR/config`` without modifying the installed package.
 """
 
 from __future__ import annotations
@@ -34,12 +34,7 @@ def _unique_list(left: list[Any], right: list[Any]) -> list[Any]:
 
 
 def _deep_merge(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
-    """Recursively merge registry dictionaries.
-
-    Later fragments override scalar values and dictionary keys. Lists are
-    appended with stable de-duplication, which is suitable for site registries,
-    blocked-domain lists, and similar package configuration.
-    """
+    """Recursively merge dictionaries, with values from ``right`` winning."""
     merged = dict(left)
     for key, value in right.items():
         current = merged.get(key)
@@ -63,39 +58,14 @@ def _selected_profiles(search_config: dict[str, Any] | None) -> list[str]:
     return []
 
 
-def load_registry(
+def _load_profiled_registry(
     config_dir: Path,
     registry: str,
-    search_config: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Load a legacy registry or merge profile fragments.
-
-    Expected optional layout::
-
-        config/profiles.yaml
-        config/employers/global.yaml
-        config/employers/eu.yaml
-        config/sites/global.yaml
-        config/sites/eu.yaml
-
-    ``profiles.yaml`` maps profile names to fragment names, for example::
-
-        profiles:
-          eu:
-            employers: [global, eu]
-            sites: [global, eu]
-
-    If no profile is selected, the manifest is absent, or no matching fragments
-    are found, ``config/<registry>.yaml`` is loaded exactly as before.
-    """
-    legacy = _load_yaml(config_dir / f"{registry}.yaml")
-    selected = _selected_profiles(search_config)
-    if not selected:
-        return legacy
-
+    selected: list[str],
+) -> tuple[dict[str, Any], bool]:
     manifest = _load_yaml(config_dir / "profiles.yaml").get("profiles", {})
     if not isinstance(manifest, dict):
-        return legacy
+        return {}, False
 
     fragments: list[str] = []
     for profile_name in selected:
@@ -118,5 +88,49 @@ def load_registry(
         if path.exists():
             merged = _deep_merge(merged, _load_yaml(path))
             loaded_any = True
+    return merged, loaded_any
 
-    return merged if loaded_any else legacy
+
+def load_registry(
+    config_dir: Path,
+    registry: str,
+    search_config: dict[str, Any] | None = None,
+    user_config_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Load a package registry and apply optional user overrides.
+
+    Package loading order:
+
+    1. selected profile fragments when available;
+    2. otherwise ``config/<registry>.yaml``.
+
+    User loading order, when ``user_config_dir`` is provided:
+
+    1. matching profile fragments under ``user_config_dir``;
+    2. ``user_config_dir/<registry>.yaml`` as a final override.
+
+    This keeps the installed package immutable while allowing personal sites,
+    employers, blocks, and URL mappings to live under the ApplyPilot data dir.
+    """
+    selected = _selected_profiles(search_config)
+    package_data, loaded_profiles = _load_profiled_registry(
+        config_dir, registry, selected
+    )
+    if not loaded_profiles:
+        package_data = _load_yaml(config_dir / f"{registry}.yaml")
+
+    if user_config_dir is None:
+        return package_data
+
+    result = package_data
+    user_profile_data, loaded_user_profiles = _load_profiled_registry(
+        user_config_dir, registry, selected
+    )
+    if loaded_user_profiles:
+        result = _deep_merge(result, user_profile_data)
+
+    user_legacy = _load_yaml(user_config_dir / f"{registry}.yaml")
+    if user_legacy:
+        result = _deep_merge(result, user_legacy)
+
+    return result
