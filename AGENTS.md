@@ -126,7 +126,8 @@ The fork already includes:
 - 44 live Workday portals in the base plus Europe profile registries
 - isolated JobSpy board subprocesses with hard timeouts and partial-result retention
 - first-class Greenhouse public API discovery with per-employer failure isolation
-- 9 verified Europe-relevant Greenhouse boards in the Europe profile
+- 10 verified Europe-relevant Greenhouse boards in the Europe profile,
+  including JetBrains
 - shared inspectable location eligibility decisions across all discovery sources
 - country-restricted remote filtering with relocation and sponsorship preservation
 - first-class Lever Postings API discovery with global/EU instance support

@@ -1,6 +1,10 @@
 # Europe-relevant Greenhouse boards verified against the public Job Board API.
 
 boards:
+  jetbrains:
+    name: "JetBrains"
+    token: "jetbrains"
+
   gitlab:
     name: "GitLab"
     token: "gitlab"

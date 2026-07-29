@@ -113,6 +113,7 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
     )
 
     assert {
+        "jetbrains",
         "gitlab",
         "grafana_labs",
         "cloudflare",
