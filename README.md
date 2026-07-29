@@ -41,6 +41,19 @@ applypilot apply --dry-run  # fill forms without submitting
 
 > **Why two install commands?** `python-jobspy` pins an exact numpy version in its metadata that conflicts with pip's resolver, but works fine at runtime with any modern numpy. The `--no-deps` flag bypasses the resolver; the second command installs jobspy's actual runtime dependencies. Everything except `python-jobspy` installs normally.
 
+### Nix
+
+The flake exports a complete package with JobSpy, Chromium, and Playwright
+runtime configuration:
+
+```bash
+nix run "git+https://github.com/bluurn/ApplyPilot.git?ref=refs/heads/feat/eu-search-profile" -- --help
+nix profile install "git+https://github.com/bluurn/ApplyPilot.git?ref=refs/heads/feat/eu-search-profile"
+```
+
+For a declarative NixOS or Home Manager installation, add this flake as an
+input and install `inputs.applypilot.packages.${system}.default`.
+
 ---
 
 ## Two Paths

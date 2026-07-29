@@ -1,5 +1,5 @@
 {
-  description = "ApplyPilot development shell";
+  description = "ApplyPilot job-search automation";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
@@ -11,12 +11,94 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       python = pkgs.python312;
-      pythonEnv = python.withPackages (ps: with ps; [
-        pytest
-        pyyaml
-      ]);
+      pythonEnv = python.withPackages (
+        ps: with ps; [
+          pytest
+          pyyaml
+        ]
+      );
+      applypilot = python.pkgs.buildPythonApplication {
+        pname = "applypilot";
+        version = "0.3.0";
+        pyproject = true;
+        src = ./.;
+
+        build-system = with python.pkgs; [
+          hatchling
+        ];
+
+        dependencies = with python.pkgs; [
+          beautifulsoup4
+          httpx
+          jobspy
+          pandas
+          playwright
+          pyyaml
+          python-dotenv
+          rich
+          typer
+        ];
+
+        nativeBuildInputs = [
+          pkgs.makeWrapper
+        ];
+
+        postFixup = ''
+          wrapProgram "$out/bin/applypilot" \
+            --prefix PATH : "${
+              pkgs.lib.makeBinPath [
+                pkgs.chromium
+                pkgs.nodejs
+              ]
+            }" \
+            --set CHROME_PATH "${pkgs.chromium}/bin/chromium" \
+            --set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH "${pkgs.chromium}/bin/chromium" \
+            --set PLAYWRIGHT_BROWSERS_PATH "${pkgs.playwright-driver.browsers}" \
+            --prefix LD_LIBRARY_PATH : "${
+              pkgs.lib.makeLibraryPath [
+                pkgs.stdenv.cc.cc.lib
+                pkgs.zlib
+              ]
+            }"
+        '';
+
+        nativeCheckInputs = with python.pkgs; [
+          pytest
+        ];
+
+        checkPhase = ''
+          runHook preCheck
+          pytest -q
+          runHook postCheck
+        '';
+
+        pythonImportsCheck = [
+          "applypilot"
+        ];
+      };
     in
     {
+      formatter.${system} = pkgs.writeShellApplication {
+        name = "applypilot-format";
+        runtimeInputs = [ pkgs.nixfmt-rfc-style ];
+        text = ''
+          if [ "$#" -eq 0 ]; then
+            set -- flake.nix
+          fi
+          exec nixfmt "$@"
+        '';
+      };
+
+      packages.${system} = {
+        inherit applypilot;
+        default = applypilot;
+      };
+
+      apps.${system}.default = {
+        type = "app";
+        program = "${applypilot}/bin/applypilot";
+      };
+
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           pythonEnv
@@ -62,32 +144,34 @@
           export CHROME_PATH="${pkgs.chromium}/bin/chromium"
           export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$CHROME_PATH"
           export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
-            pkgs.stdenv.cc.cc.lib
-            pkgs.zlib
-            pkgs.glib
-            pkgs.nss
-            pkgs.nspr
-            pkgs.atk
-            pkgs.at-spi2-atk
-            pkgs.cups
-            pkgs.dbus
-            pkgs.expat
-            pkgs.libdrm
-            pkgs.libxkbcommon
-            pkgs.mesa
-            pkgs.pango
-            pkgs.cairo
-            pkgs.alsa-lib
-            pkgs.gtk3
-            pkgs.libgbm
-            pkgs.xorg.libX11
-            pkgs.xorg.libXcomposite
-            pkgs.xorg.libXdamage
-            pkgs.xorg.libXext
-            pkgs.xorg.libXfixes
-            pkgs.xorg.libXrandr
-          ]}:''${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="${
+            pkgs.lib.makeLibraryPath [
+              pkgs.stdenv.cc.cc.lib
+              pkgs.zlib
+              pkgs.glib
+              pkgs.nss
+              pkgs.nspr
+              pkgs.atk
+              pkgs.at-spi2-atk
+              pkgs.cups
+              pkgs.dbus
+              pkgs.expat
+              pkgs.libdrm
+              pkgs.libxkbcommon
+              pkgs.mesa
+              pkgs.pango
+              pkgs.cairo
+              pkgs.alsa-lib
+              pkgs.gtk3
+              pkgs.libgbm
+              pkgs.xorg.libX11
+              pkgs.xorg.libXcomposite
+              pkgs.xorg.libXdamage
+              pkgs.xorg.libXext
+              pkgs.xorg.libXfixes
+              pkgs.xorg.libXrandr
+            ]
+          }:''${LD_LIBRARY_PATH:-}"
 
           echo "ApplyPilot development shell"
           echo "Python: $(python --version 2>&1)"
