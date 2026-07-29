@@ -118,21 +118,22 @@ The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Update `src/applypilot/discovery/workday.py` so Workday employer discovery uses the runtime registry.
+Continue expanding the Europe-oriented Workday employer registry toward
+100–300 useful companies.
 
-Required changes:
+For each addition:
 
-1. Replace direct reading of `config/employers.yaml` with:
+1. Verify the current Workday tenant, site ID, and base URL against an active
+   employer career portal.
+2. Prefer employers with Germany, EU, or Europe-compatible remote engineering
+   roles.
+3. Add broadly useful defaults to the packaged `eu` employer fragment.
+4. Keep personal or speculative employers in the user registry instead.
+5. Validate that the runtime EU profile includes both base employers and the
+   Europe fragment without duplicate keys.
 
-   ```python
-   config.load_employers_config()
-   ```
-
-2. `load_employers()` should return the registry's `employers` mapping.
-3. Remove now-unused direct imports such as `yaml` and `CONFIG_DIR`.
-4. Update stale docstrings and warnings that claim Workday reads only `config/employers.yaml`.
-5. Add a focused regression test proving `load_employers()` delegates to the runtime loader.
-6. Run the relevant tests and then the full test suite when practical.
+After a meaningful next batch, begin Greenhouse discovery as the next
+first-class ATS source.
 
 ## Discovery Roadmap
 

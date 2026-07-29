@@ -101,8 +101,8 @@ def load_registry(
 
     Package loading order:
 
-    1. selected profile fragments when available;
-    2. otherwise ``config/<registry>.yaml``.
+    1. ``config/<registry>.yaml`` as base defaults;
+    2. selected profile fragments, in manifest order.
 
     User loading order, when ``user_config_dir`` is provided:
 
@@ -113,11 +113,12 @@ def load_registry(
     employers, blocks, and URL mappings to live under the ApplyPilot data dir.
     """
     selected = _selected_profiles(search_config)
-    package_data, loaded_profiles = _load_profiled_registry(
+    package_data = _load_yaml(config_dir / f"{registry}.yaml")
+    package_profile_data, loaded_profiles = _load_profiled_registry(
         config_dir, registry, selected
     )
-    if not loaded_profiles:
-        package_data = _load_yaml(config_dir / f"{registry}.yaml")
+    if loaded_profiles:
+        package_data = _deep_merge(package_data, package_profile_data)
 
     if user_config_dir is None:
         return package_data

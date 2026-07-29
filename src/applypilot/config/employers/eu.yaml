@@ -1,0 +1,51 @@
+# Europe-oriented additions to the base Workday employer registry.
+# Each portal was verified against an active European listing.
+
+employers:
+  gea:
+    name: "GEA"
+    tenant: "gea"
+    site_id: "GEACareers"
+    base_url: "https://gea.wd3.myworkdayjobs.com"
+
+  guidehouse:
+    name: "Guidehouse"
+    tenant: "guidehouse"
+    site_id: "External"
+    base_url: "https://guidehouse.wd1.myworkdayjobs.com"
+
+  zendesk:
+    name: "Zendesk"
+    tenant: "zendesk"
+    site_id: "zendesk"
+    base_url: "https://zendesk.wd1.myworkdayjobs.com"
+
+  sony:
+    name: "Sony"
+    tenant: "sonyglobal"
+    site_id: "SonyGlobalCareers"
+    base_url: "https://sonyglobal.wd1.myworkdayjobs.com"
+
+  zalando:
+    name: "Zalando"
+    tenant: "zalando"
+    site_id: "ZalandoSiteWD"
+    base_url: "https://zalando.wd3.myworkdayjobs.com"
+
+  sandvik:
+    name: "Sandvik"
+    tenant: "sandvik"
+    site_id: "coromant-jobs"
+    base_url: "https://sandvik.wd3.myworkdayjobs.com"
+
+  jll:
+    name: "JLL"
+    tenant: "jll"
+    site_id: "jllcareers"
+    base_url: "https://jll.wd1.myworkdayjobs.com"
+
+  oclc:
+    name: "OCLC"
+    tenant: "oclc"
+    site_id: "oclc_emea_careers"
+    base_url: "https://oclc.wd1.myworkdayjobs.com"

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import yaml
 
+from applypilot import config
 from applypilot.config_registry import load_registry
 
 
@@ -43,6 +44,47 @@ def test_merges_profile_fragments_in_manifest_order(tmp_path: Path) -> None:
 
     assert set(result["employers"]) == {"shared", "global", "eu"}
     assert result["employers"]["shared"]["name"] == "EU override"
+
+
+def test_selected_profile_extends_legacy_package_defaults(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "employers.yaml",
+        {"employers": {"base": {"name": "Base"}, "shared": {"name": "Base"}}},
+    )
+    _write(
+        tmp_path / "profiles.yaml",
+        {"profiles": {"eu": {"employers": ["eu"]}}},
+    )
+    _write(
+        tmp_path / "employers" / "eu.yaml",
+        {"employers": {"eu": {"name": "EU"}, "shared": {"name": "EU"}}},
+    )
+
+    result = load_registry(tmp_path, "employers", {"search_profile": "eu"})
+
+    assert set(result["employers"]) == {"base", "shared", "eu"}
+    assert result["employers"]["shared"]["name"] == "EU"
+
+
+def test_packaged_eu_profile_includes_base_and_europe_employers() -> None:
+    result = load_registry(
+        config.CONFIG_DIR,
+        "employers",
+        {"search_profile": "eu"},
+    )
+
+    employers = result["employers"]
+    assert "deutsche_bank" in employers
+    assert {
+        "gea",
+        "guidehouse",
+        "zendesk",
+        "sony",
+        "zalando",
+        "sandvik",
+        "jll",
+        "oclc",
+    } <= employers.keys()
 
 
 def test_falls_back_to_legacy_when_profile_fragments_are_missing(tmp_path: Path) -> None:
