@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 from jobspy import scrape_jobs
 
 from applypilot import config
-from applypilot.database import get_connection, init_db, store_jobs
+from applypilot.database import get_connection, init_db
+from applypilot.discovery.filters import title_is_excluded
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +130,6 @@ def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str) -> tup
             continue
 
         title = str(row.get("title", "")) if str(row.get("title", "")) != "nan" else None
-        company = str(row.get("company", "")) if str(row.get("company", "")) != "nan" else None
         location_str = str(row.get("location", "")) if str(row.get("location", "")) != "nan" else None
 
         # Build salary string from min/max
@@ -194,6 +194,7 @@ def _run_one_search(
     max_retries: int,
     accept_locs: list[str],
     reject_locs: list[str],
+    exclude_titles: list[str],
     glassdoor_map: dict,
 ) -> dict:
     """Run a single search query and store results in DB."""
@@ -268,8 +269,15 @@ def _run_one_search(
         log.info("[%s] 0 results", label)
         return {"new": 0, "existing": 0, "errors": 0, "filtered": 0, "total": 0, "label": label}
 
-    # Filter by location before storing
+    # Filter by configured title exclusions and location before storing
     before = len(df)
+    df = df[~df.apply(
+        lambda row: title_is_excluded(
+            str(row.get("title", "")) if str(row.get("title", "")) != "nan" else None,
+            exclude_titles,
+        ),
+        axis=1,
+    )]
     df = df[df.apply(lambda row: _location_ok(
         str(row.get("location", "")) if str(row.get("location", "")) != "nan" else None,
         accept_locs, reject_locs,
@@ -377,6 +385,7 @@ def _full_crawl(
     defaults = search_cfg.get("defaults", {})
     glassdoor_map = search_cfg.get("glassdoor_location_map", {})
     accept_locs, reject_locs = _load_location_config(search_cfg)
+    exclude_titles = search_cfg.get("exclude_titles", [])
 
     if tiers:
         queries = [q for q in queries if q.get("tier") in tiers]
@@ -411,7 +420,7 @@ def _full_crawl(
         result = _run_one_search(
             s, sites, results_per_site, hours_old,
             proxy_config, defaults, max_retries,
-            accept_locs, reject_locs, glassdoor_map,
+            accept_locs, reject_locs, exclude_titles, glassdoor_map,
         )
         completed += 1
         total_new += result["new"]

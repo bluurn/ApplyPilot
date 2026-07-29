@@ -211,7 +211,7 @@ def apply(
             raise typer.Exit(code=1)
 
     if gen:
-        from applypilot.apply.launcher import gen_prompt, BASE_CDP_PORT
+        from applypilot.apply.launcher import gen_prompt
         target = url or ""
         if not target:
             console.print("[red]--gen requires --url to specify which job.[/red]")
@@ -222,7 +222,7 @@ def apply(
             raise typer.Exit(code=1)
         mcp_path = _profile_path.parent / ".mcp-apply-0.json"
         console.print(f"[green]Wrote prompt to:[/green] {prompt_file}")
-        console.print(f"\n[bold]Run manually:[/bold]")
+        console.print("\n[bold]Run manually:[/bold]")
         console.print(
             f"  claude --model {model} -p "
             f"--mcp-config {mcp_path} "
@@ -254,6 +254,36 @@ def apply(
         continuous=continuous,
         workers=workers,
     )
+
+
+@app.command("workday-health")
+def workday_health(
+    workers: int = typer.Option(8, "--workers", "-w", min=1, help="Concurrent portal checks."),
+) -> None:
+    """Validate configured Workday employers against their CXS endpoints."""
+    from applypilot.discovery.workday import check_registry_health
+
+    results = check_registry_health(workers=workers)
+    table = Table(title="Workday registry health")
+    table.add_column("Employer")
+    table.add_column("Status")
+    table.add_column("Detail")
+
+    failed = 0
+    for result in results:
+        if result["status"] == "ok":
+            status = "[green]ok[/green]"
+        else:
+            status = f"[red]{result['status']}[/red]"
+            failed += 1
+        table.add_row(result["name"], status, result["detail"])
+
+    console.print(table)
+    console.print(
+        f"{len(results) - failed}/{len(results)} Workday portals healthy"
+    )
+    if failed:
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -338,7 +368,7 @@ def doctor() -> None:
     import shutil
     from applypilot.config import (
         load_env, PROFILE_PATH, RESUME_PATH, RESUME_PDF_PATH,
-        SEARCH_CONFIG_PATH, ENV_PATH, get_chrome_path,
+        SEARCH_CONFIG_PATH, get_chrome_path,
     )
 
     load_env()

@@ -13,7 +13,6 @@ import json
 import shutil
 from pathlib import Path
 
-import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
@@ -208,6 +207,8 @@ def _setup_searches() -> None:
     lines = [
         "# ApplyPilot search configuration",
         "# Edit this file to refine your job search queries.",
+        "",
+        "search_profile: eu",
         "",
         "defaults:",
         f'  location: "{location}"',

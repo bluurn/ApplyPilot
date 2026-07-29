@@ -49,3 +49,111 @@ employers:
     tenant: "oclc"
     site_id: "oclc_emea_careers"
     base_url: "https://oclc.wd1.myworkdayjobs.com"
+
+  relx:
+    name: "RELX"
+    tenant: "relx"
+    site_id: "relx"
+    base_url: "https://relx.wd3.myworkdayjobs.com"
+
+  santander:
+    name: "Santander"
+    tenant: "santander"
+    site_id: "SantanderCareers"
+    base_url: "https://santander.wd3.myworkdayjobs.com"
+
+  intrum:
+    name: "Intrum"
+    tenant: "intrum"
+    site_id: "External"
+    base_url: "https://intrum.wd3.myworkdayjobs.com"
+
+  brunswick:
+    name: "Brunswick"
+    tenant: "brunswick"
+    site_id: "SearchEMEA"
+    base_url: "https://brunswick.wd1.myworkdayjobs.com"
+
+  mehilainen:
+    name: "Mehiläinen / BeeHealthy"
+    tenant: "mehilainen"
+    site_id: "beehealthy_careers"
+    base_url: "https://mehilainen.wd103.myworkdayjobs.com"
+
+  pfizer:
+    name: "Pfizer"
+    tenant: "pfizer"
+    site_id: "PfizerCareers"
+    base_url: "https://pfizer.wd1.myworkdayjobs.com"
+
+  adtran:
+    name: "Adtran"
+    tenant: "adtran"
+    site_id: "ADTRAN"
+    base_url: "https://adtran.wd3.myworkdayjobs.com"
+
+  dow_jones:
+    name: "Dow Jones"
+    tenant: "dowjones"
+    site_id: "Dow_Jones_Career"
+    base_url: "https://dowjones.wd1.myworkdayjobs.com"
+
+  sanofi:
+    name: "Sanofi"
+    tenant: "sanofi"
+    site_id: "SanofiCareers"
+    base_url: "https://sanofi.wd3.myworkdayjobs.com"
+
+  autodesk:
+    name: "Autodesk"
+    tenant: "autodesk"
+    site_id: "Ext"
+    base_url: "https://autodesk.wd1.myworkdayjobs.com"
+
+  visa:
+    name: "Visa"
+    tenant: "visa"
+    site_id: "Visa"
+    base_url: "https://visa.wd5.myworkdayjobs.com"
+
+  guidewire:
+    name: "Guidewire"
+    tenant: "guidewire"
+    site_id: "external"
+    base_url: "https://guidewire.wd5.myworkdayjobs.com"
+
+  pgim:
+    name: "PGIM"
+    tenant: "pru"
+    site_id: "PGIM_Careers"
+    base_url: "https://pru.wd5.myworkdayjobs.com"
+
+  workhuman:
+    name: "Workhuman"
+    tenant: "workhuman"
+    site_id: "WorkhumanCareers"
+    base_url: "https://workhuman.wd1.myworkdayjobs.com"
+
+  astemo:
+    name: "Astemo"
+    tenant: "astemo"
+    site_id: "Global_Career_Site"
+    base_url: "https://astemo.wd102.myworkdayjobs.com"
+
+  blackrock:
+    name: "BlackRock"
+    tenant: "blackrock"
+    site_id: "BlackRock_Professional"
+    base_url: "https://blackrock.wd1.myworkdayjobs.com"
+
+  rakuten_kobo:
+    name: "Rakuten Kobo"
+    tenant: "rakuten"
+    site_id: "Kobo"
+    base_url: "https://rakuten.wd1.myworkdayjobs.com"
+
+  fidelity:
+    name: "Fidelity Investments"
+    tenant: "fmr"
+    site_id: "FidelityCareers"
+    base_url: "https://fmr.wd1.myworkdayjobs.com"

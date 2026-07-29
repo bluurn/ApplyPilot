@@ -19,6 +19,7 @@ from html.parser import HTMLParser
 
 from applypilot import config
 from applypilot.database import get_connection, init_db
+from applypilot.discovery.filters import title_is_excluded
 
 log = logging.getLogger(__name__)
 
@@ -176,6 +177,70 @@ def workday_detail(employer: dict, external_path: str) -> dict:
         return json.loads(resp.read())
 
 
+# -- Registry health ---------------------------------------------------------
+
+def check_employer_health(employer_key: str, employer: dict) -> dict:
+    """Validate one employer against its Workday CXS search endpoint."""
+    required = ("name", "tenant", "site_id", "base_url")
+    missing = [field for field in required if not employer.get(field)]
+    if missing:
+        return {
+            "key": employer_key,
+            "name": employer.get("name", employer_key),
+            "status": "invalid_config",
+            "detail": f"missing: {', '.join(missing)}",
+        }
+
+    try:
+        data = workday_search(employer, "", limit=20)
+    except Exception as exc:
+        return {
+            "key": employer_key,
+            "name": employer["name"],
+            "status": "unreachable",
+            "detail": str(exc),
+        }
+
+    if not isinstance(data, dict) or "total" not in data or "jobPostings" not in data:
+        return {
+            "key": employer_key,
+            "name": employer["name"],
+            "status": "invalid_response",
+            "detail": "CXS response is missing total or jobPostings",
+        }
+
+    return {
+        "key": employer_key,
+        "name": employer["name"],
+        "status": "ok",
+        "detail": f"{data['total']} open jobs",
+    }
+
+
+def check_registry_health(employers: dict | None = None, workers: int = 8) -> list[dict]:
+    """Validate the Workday registry, preserving its configured order."""
+    if employers is None:
+        employers = load_employers()
+
+    if workers <= 1:
+        return [
+            check_employer_health(key, employer)
+            for key, employer in employers.items()
+        ]
+
+    results: dict[str, dict] = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(check_employer_health, key, employer): key
+            for key, employer in employers.items()
+        }
+        for future in as_completed(futures):
+            key = futures[future]
+            results[key] = future.result()
+
+    return [results[key] for key in employers]
+
+
 # -- Search + paginate -------------------------------------------------------
 
 def search_employer(
@@ -186,6 +251,7 @@ def search_employer(
     max_results: int = 0,
     accept_locs: list[str] | None = None,
     reject_locs: list[str] | None = None,
+    exclude_titles: list[str] | None = None,
 ) -> list[dict]:
     """Search an employer, paginate through all results, optionally filter by location."""
     log.info("%s: searching \"%s\"...", employer["name"], search_text)
@@ -195,6 +261,7 @@ def search_employer(
     page_size = 20
     max_pages = 25  # Cap at 500 results
     total = None
+    exclude_titles = exclude_titles or []
 
     while True:
         try:
@@ -212,6 +279,8 @@ def search_employer(
             break
 
         for j in postings:
+            if title_is_excluded(j.get("title"), exclude_titles):
+                continue
             loc = j.get("locationsText", "")
             if location_filter and accept_locs is not None and reject_locs is not None:
                 if not _location_ok(loc, accept_locs, reject_locs):
@@ -339,6 +408,7 @@ def _process_one(
     location_filter: bool,
     accept_locs: list[str],
     reject_locs: list[str],
+    exclude_titles: list[str],
 ) -> dict:
     """Search one employer, fetch details, store results."""
     emp = employers[employer_key]
@@ -349,6 +419,7 @@ def _process_one(
             location_filter=location_filter,
             accept_locs=accept_locs,
             reject_locs=reject_locs,
+            exclude_titles=exclude_titles,
         )
     except Exception as e:
         log.error("%s: ERROR searching '%s': %s", emp["name"], search_text, e)
@@ -382,6 +453,7 @@ def scrape_employers(
     max_results: int = 0,
     accept_locs: list[str] | None = None,
     reject_locs: list[str] | None = None,
+    exclude_titles: list[str] | None = None,
     workers: int = 1,
 ) -> dict:
     """Run full scrape: search -> filter -> detail -> store.
@@ -396,6 +468,8 @@ def scrape_employers(
         accept_locs = []
     if reject_locs is None:
         reject_locs = []
+    if exclude_titles is None:
+        exclude_titles = []
 
     # Ensure DB schema
     init_db()
@@ -415,7 +489,7 @@ def scrape_employers(
             futures = {
                 pool.submit(
                     _process_one, key, employers, search_text,
-                    location_filter, accept_locs, reject_locs,
+                    location_filter, accept_locs, reject_locs, exclude_titles,
                 ): key
                 for key in valid_keys
             }
@@ -438,7 +512,7 @@ def scrape_employers(
         for key in valid_keys:
             result = _process_one(
                 key, employers, search_text,
-                location_filter, accept_locs, reject_locs,
+                location_filter, accept_locs, reject_locs, exclude_titles,
             )
             completed += 1
             total_new += result["new"]
@@ -485,6 +559,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
     search_cfg = config.load_search_config()
     queries_cfg = search_cfg.get("queries", [])
     accept_locs, reject_locs = _load_location_filter(search_cfg)
+    exclude_titles = search_cfg.get("exclude_titles", [])
 
     # Default to tier 1-2 queries for workday scraping
     max_tier = search_cfg.get("workday_max_tier", 2)
@@ -518,6 +593,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
             location_filter=location_filter,
             accept_locs=accept_locs,
             reject_locs=reject_locs,
+            exclude_titles=exclude_titles,
             workers=workers,
         )
         grand_new += result["new"]

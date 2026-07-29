@@ -113,27 +113,24 @@ The fork already includes:
 - profile-aware config registry
 - runtime registry integration in `config.py`
 - tests for registry merging and runtime integration
+- Workday registry health checking via `applypilot workday-health`
+- 44 live Workday portals in the base plus Europe profile registries
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Continue expanding the Europe-oriented Workday employer registry toward
-100–300 useful companies.
+Add Greenhouse as the next first-class ATS discovery source.
 
-For each addition:
+Requirements:
 
-1. Verify the current Workday tenant, site ID, and base URL against an active
-   employer career portal.
-2. Prefer employers with Germany, EU, or Europe-compatible remote engineering
-   roles.
-3. Add broadly useful defaults to the packaged `eu` employer fragment.
-4. Keep personal or speculative employers in the user registry instead.
-5. Validate that the runtime EU profile includes both base employers and the
-   Europe fragment without duplicate keys.
-
-After a meaningful next batch, begin Greenhouse discovery as the next
-first-class ATS source.
+1. Use Greenhouse's public job-board API without a browser or LLM.
+2. Load employer board tokens from the runtime registry rather than hardcoding
+   them in discovery code.
+3. Isolate failures per employer so one broken board does not stop discovery.
+4. Normalize jobs into the existing database fields and deduplicate by URL.
+5. Apply the explicit Europe and remote location filters.
+6. Add focused API, normalization, and failure-isolation tests.
 
 ## Discovery Roadmap
 
