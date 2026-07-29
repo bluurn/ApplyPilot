@@ -30,6 +30,10 @@ from applypilot import config
 from applypilot.config import CONFIG_DIR
 from applypilot.database import init_db, get_stats
 from applypilot.discovery.filters import evaluate_location, title_is_excluded
+from applypilot.discovery.watchlist import (
+    update_existing_watchlist,
+    watchlist_fields,
+)
 from applypilot.llm import get_client
 
 log = logging.getLogger(__name__)
@@ -98,6 +102,7 @@ def _store_jobs_filtered(
     new = 0
     existing = 0
     filtered = 0
+    watchlist = config.load_search_config().get("watchlist", [])
 
     for job in jobs:
         url = job.get("url")
@@ -115,15 +120,26 @@ def _store_jobs_filtered(
             filtered += 1
             continue
         try:
+            company = job.get("company") or site
+            is_watchlist, watchlist_name = watchlist_fields(company, watchlist)
             conn.execute(
-                "INSERT INTO jobs (url, title, salary, description, location, site, strategy, discovered_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO jobs (url, title, salary, description, location, site, company, "
+                "is_watchlist, watchlist_name, strategy, discovered_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (url, job.get("title"), job.get("salary"), job.get("description"),
-                 job.get("location"), site, strategy, now),
+                 job.get("location"), site, company, is_watchlist, watchlist_name,
+                 strategy, now),
             )
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                url,
+                company,
+                is_watchlist,
+                watchlist_name,
+            )
 
     if filtered:
         log.info("Filtered %d jobs (wrong location)", filtered)

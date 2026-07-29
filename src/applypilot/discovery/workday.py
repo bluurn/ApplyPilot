@@ -20,6 +20,11 @@ from html.parser import HTMLParser
 from applypilot import config
 from applypilot.database import get_connection, init_db
 from applypilot.discovery.filters import evaluate_location, title_is_excluded
+from applypilot.discovery.watchlist import (
+    prioritize_registry,
+    update_existing_watchlist,
+    watchlist_fields,
+)
 
 log = logging.getLogger(__name__)
 
@@ -354,6 +359,7 @@ def fetch_details(employer: dict, jobs: list[dict]) -> list[dict]:
 def store_results(conn: sqlite3.Connection, jobs: list[dict], employers: dict) -> tuple[int, int]:
     """Store corporate jobs in DB. Returns (new, existing)."""
     now = datetime.now(timezone.utc).isoformat()
+    watchlist = config.load_search_config().get("watchlist", [])
     new = 0
     existing = 0
 
@@ -373,19 +379,29 @@ def store_results(conn: sqlite3.Connection, jobs: list[dict], employers: dict) -
         detail_error = job.get("detail_error")
 
         site = job.get("employer_name", "Corporate")
+        is_watchlist, watchlist_name = watchlist_fields(site, watchlist)
         strategy = "workday_api"
 
         try:
             conn.execute(
-                "INSERT INTO jobs (url, title, salary, description, location, site, strategy, "
+                "INSERT INTO jobs (url, title, salary, description, location, site, company, "
+                "is_watchlist, watchlist_name, strategy, "
                 "discovered_at, full_description, application_url, detail_scraped_at, detail_error) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (url, job.get("title"), None, short_desc, job.get("location"),
-                 site, strategy, now, full_description, url, detail_scraped_at, detail_error),
+                 site, site, is_watchlist, watchlist_name, strategy, now,
+                 full_description, url, detail_scraped_at, detail_error),
             )
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                url,
+                site,
+                is_watchlist,
+                watchlist_name,
+            )
 
     conn.commit()
     return new, existing
@@ -547,6 +563,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
         return {"found": 0, "new": 0, "existing": 0, "queries": 0}
 
     search_cfg = config.load_search_config()
+    employers = prioritize_registry(employers, search_cfg.get("watchlist", []))
     queries_cfg = search_cfg.get("queries", [])
     accept_locs, reject_locs = _load_location_filter(search_cfg)
     exclude_titles = search_cfg.get("exclude_titles", [])

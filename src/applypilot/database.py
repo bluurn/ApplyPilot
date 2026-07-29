@@ -96,6 +96,9 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             description           TEXT,
             location              TEXT,
             site                  TEXT,
+            company               TEXT,
+            is_watchlist          INTEGER DEFAULT 0,
+            watchlist_name        TEXT,
             strategy              TEXT,
             discovered_at         TEXT,
 
@@ -151,6 +154,9 @@ _ALL_COLUMNS: dict[str, str] = {
     "description": "TEXT",
     "location": "TEXT",
     "site": "TEXT",
+    "company": "TEXT",
+    "is_watchlist": "INTEGER DEFAULT 0",
+    "watchlist_name": "TEXT",
     "strategy": "TEXT",
     "discovered_at": "TEXT",
     # Enrichment
@@ -241,6 +247,9 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
 
     # Total jobs
     stats["total"] = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+    stats["watchlist"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE is_watchlist = 1"
+    ).fetchone()[0]
 
     # By site breakdown
     rows = conn.execute(
@@ -340,6 +349,13 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict],
         Tuple of (new_count, duplicate_count).
     """
     now = datetime.now(timezone.utc).isoformat()
+    from applypilot.config import load_search_config
+    from applypilot.discovery.watchlist import (
+        update_existing_watchlist,
+        watchlist_fields,
+    )
+
+    watchlist = load_search_config().get("watchlist", [])
     new = 0
     existing = 0
 
@@ -347,16 +363,27 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict],
         url = job.get("url")
         if not url:
             continue
+        company = job.get("company") or site
+        is_watchlist, watchlist_name = watchlist_fields(company, watchlist)
         try:
             conn.execute(
-                "INSERT INTO jobs (url, title, salary, description, location, site, strategy, discovered_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO jobs (url, title, salary, description, location, site, "
+                "company, is_watchlist, watchlist_name, strategy, discovered_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (url, job.get("title"), job.get("salary"), job.get("description"),
-                 job.get("location"), site, strategy, now),
+                 job.get("location"), site, company, is_watchlist,
+                 watchlist_name, strategy, now),
             )
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                url,
+                company,
+                is_watchlist,
+                watchlist_name,
+            )
 
     conn.commit()
     return new, existing
@@ -410,7 +437,10 @@ def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
         where += " AND fit_score >= ?"
         params.append(min_score)
 
-    query = f"SELECT * FROM jobs WHERE {where} ORDER BY fit_score DESC NULLS LAST, discovered_at DESC"
+    query = (
+        f"SELECT * FROM jobs WHERE {where} "
+        "ORDER BY is_watchlist DESC, fit_score DESC NULLS LAST, discovered_at DESC"
+    )
     if limit > 0:
         query += " LIMIT ?"
         params.append(limit)

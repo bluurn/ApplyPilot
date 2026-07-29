@@ -20,6 +20,11 @@ from applypilot.discovery.filters import (
     title_is_excluded,
     title_matches_queries,
 )
+from applypilot.discovery.watchlist import (
+    prioritize_registry,
+    update_existing_watchlist,
+    watchlist_fields,
+)
 
 log = logging.getLogger(__name__)
 
@@ -140,17 +145,28 @@ def _salary(raw: dict) -> str | None:
     return f"{currency} {values}{suffix}".strip()
 
 
-def normalize_job(site_key: str, site: dict, raw: dict, now: str) -> dict:
+def normalize_job(
+    site_key: str,
+    site: dict,
+    raw: dict,
+    now: str,
+    watchlist: list[str] | None = None,
+) -> dict:
     """Normalize one Lever posting into ApplyPilot's database schema."""
     description = _description(raw)
     url = raw.get("hostedUrl", "")
+    company = site.get("name", site_key)
+    is_watchlist, watchlist_name = watchlist_fields(company, watchlist)
     return {
         "url": url,
         "title": raw.get("text", ""),
         "salary": _salary(raw),
         "description": description[:500] or None,
         "location": _location(raw),
-        "site": site.get("name", site_key),
+        "site": company,
+        "company": company,
+        "is_watchlist": is_watchlist,
+        "watchlist_name": watchlist_name,
         "strategy": "lever_api",
         "discovered_at": now,
         "full_description": description or None,
@@ -218,10 +234,11 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
             conn.execute(
                 """
                 INSERT INTO jobs (
-                    url, title, salary, description, location, site, strategy,
+                    url, title, salary, description, location, site, company,
+                    is_watchlist, watchlist_name, strategy,
                     discovered_at, full_description, application_url,
                     detail_scraped_at, detail_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job["url"],
@@ -230,6 +247,9 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
                     job["description"],
                     job["location"],
                     job["site"],
+                    job["company"],
+                    job["is_watchlist"],
+                    job["watchlist_name"],
                     job["strategy"],
                     job["discovered_at"],
                     job["full_description"],
@@ -241,6 +261,13 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                job["url"],
+                job["company"],
+                job["is_watchlist"],
+                job["watchlist_name"],
+            )
     conn.commit()
     return new, existing
 
@@ -258,6 +285,8 @@ def run_lever_discovery(
         return {"found": 0, "new": 0, "existing": 0, "errors": 0, "sites": 0}
 
     search_cfg = config.load_search_config()
+    watchlist = search_cfg.get("watchlist", [])
+    sites = prioritize_registry(sites, watchlist)
     timeout = search_cfg.get("defaults", {}).get("source_timeout_seconds", 30)
     now = datetime.now(timezone.utc).isoformat()
     if conn is None:
@@ -291,7 +320,9 @@ def run_lever_discovery(
         if raw_jobs is None:
             continue
         selected = filter_jobs(raw_jobs, search_cfg)
-        normalized = [normalize_job(key, site, raw, now) for raw in selected]
+        normalized = [
+            normalize_job(key, site, raw, now, watchlist) for raw in selected
+        ]
         site_new, site_existing = store_jobs(conn, normalized)
         found += len(normalized)
         new += site_new

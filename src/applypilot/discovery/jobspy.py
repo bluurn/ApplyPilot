@@ -15,6 +15,10 @@ from datetime import datetime, timezone
 from applypilot import config
 from applypilot.database import get_connection, init_db
 from applypilot.discovery.filters import evaluate_location, title_is_excluded
+from applypilot.discovery.watchlist import (
+    update_existing_watchlist,
+    watchlist_fields,
+)
 from applypilot.subprocess_runner import run_in_subprocess
 
 log = logging.getLogger(__name__)
@@ -134,6 +138,7 @@ def _location_ok(
 def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str) -> tuple[int, int]:
     """Store JobSpy DataFrame results into the DB. Returns (new, existing)."""
     now = datetime.now(timezone.utc).isoformat()
+    watchlist = config.load_search_config().get("watchlist", [])
     new = 0
     existing = 0
 
@@ -161,6 +166,9 @@ def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str) -> tup
 
         description = str(row.get("description", "")) if str(row.get("description", "")) != "nan" else None
         site_name = str(row.get("site", source_label))
+        raw_company = str(row.get("company", ""))
+        company = raw_company if raw_company and raw_company != "nan" else None
+        is_watchlist, watchlist_name = watchlist_fields(company, watchlist)
         is_remote = row.get("is_remote", False)
 
         site_label = f"{site_name}"
@@ -181,15 +189,26 @@ def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str) -> tup
 
         try:
             conn.execute(
-                "INSERT INTO jobs (url, title, salary, description, location, site, strategy, discovered_at, "
+                "INSERT INTO jobs (url, title, salary, description, location, site, company, "
+                "is_watchlist, watchlist_name, strategy, discovered_at, "
                 "full_description, application_url, detail_scraped_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (url, title, salary, description, location_str, site_label, strategy, now,
-                 full_description, apply_url, detail_scraped_at),
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    url, title, salary, description, location_str, site_label,
+                    company, is_watchlist, watchlist_name, strategy, now,
+                    full_description, apply_url, detail_scraped_at,
+                ),
             )
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                url,
+                company,
+                is_watchlist,
+                watchlist_name,
+            )
 
     conn.commit()
     return new, existing

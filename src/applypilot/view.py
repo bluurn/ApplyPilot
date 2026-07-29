@@ -10,14 +10,13 @@ Generates a self-contained HTML dashboard with:
 
 from __future__ import annotations
 
-import os
 import webbrowser
 from html import escape
 from pathlib import Path
 
 from rich.console import Console
 
-from applypilot.config import APP_DIR, DB_PATH
+from applypilot.config import APP_DIR
 from applypilot.database import get_connection
 
 console = Console()
@@ -48,6 +47,9 @@ def generate_dashboard(output_path: str | None = None) -> str:
     high_fit = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE fit_score >= 7"
     ).fetchone()[0]
+    watchlist_count = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE is_watchlist = 1"
+    ).fetchone()[0]
 
     # Score distribution
     score_dist: dict[int, int] = {}
@@ -74,12 +76,13 @@ def generate_dashboard(output_path: str | None = None) -> str:
 
     # All scored jobs (5+), ordered by score desc
     jobs = conn.execute("""
-        SELECT url, title, salary, description, location, site, strategy,
+        SELECT url, title, salary, description, location, site, company,
+               is_watchlist, watchlist_name, strategy,
                full_description, application_url, detail_error,
                fit_score, score_reasoning
         FROM jobs
-        WHERE fit_score >= 5
-        ORDER BY fit_score DESC, site, title
+        WHERE fit_score >= 5 OR is_watchlist = 1
+        ORDER BY is_watchlist DESC, fit_score DESC, site, title
     """).fetchall()
 
     # Color map per site
@@ -172,6 +175,12 @@ def generate_dashboard(output_path: str | None = None) -> str:
             meta_parts.append(f'<span class="meta-tag salary">{salary}</span>')
         if location:
             meta_parts.append(f'<span class="meta-tag location">{location[:40]}</span>')
+        if j["is_watchlist"]:
+            meta_parts.append(
+                '<span class="meta-tag watchlist">★ '
+                f'{escape(j["watchlist_name"] or j["company"] or "Watchlist")}'
+                "</span>"
+            )
         meta_html = " ".join(meta_parts)
 
         apply_html = ""
@@ -179,7 +188,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
             apply_html = f'<a href="{apply_url}" class="apply-link" target="_blank">Apply</a>'
 
         job_sections += f"""
-        <div class="job-card" data-score="{score}" data-site="{escape(j['site'] or '')}" data-location="{location.lower()}">
+        <div class="job-card" data-score="{score}" data-site="{escape(j['site'] or '')}" data-location="{location.lower()}" data-watchlist="{int(bool(j['is_watchlist']))}">
           <div class="card-header">
             <span class="score-pill" style="background:{'#10b981' if score >= 7 else '#f59e0b'}">{score}</span>
             <a href="{url}" class="job-title" target="_blank">{title}</a>
@@ -260,6 +269,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
   .job-card[data-score="7"] {{ border-left-color: #60a5fa; }}
   .job-card[data-score="6"] {{ border-left-color: #f59e0b; }}
   .job-card[data-score="5"] {{ border-left-color: #f59e0b88; }}
+  .job-card[data-watchlist="1"] {{ border-left-color: #facc15; box-shadow: 0 0 0 1px #facc1533; }}
 
   .card-header {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }}
   .score-pill {{ display: inline-flex; align-items: center; justify-content: center; min-width: 1.6rem; height: 1.6rem; border-radius: 6px; color: #0f172a; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }}
@@ -271,6 +281,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
   .meta-tag {{ font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: #334155; color: #94a3b8; }}
   .meta-tag.salary {{ background: #064e3b; color: #6ee7b7; }}
   .meta-tag.location {{ background: #1e3a5f; color: #93c5fd; }}
+  .meta-tag.watchlist {{ background: #713f12; color: #fde68a; }}
 
   .keywords-row {{ font-size: 0.75rem; color: #10b981; margin-bottom: 0.3rem; line-height: 1.4; }}
   .reasoning-row {{ font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-style: italic; line-height: 1.4; }}
@@ -302,13 +313,14 @@ def generate_dashboard(output_path: str | None = None) -> str:
 <body>
 
 <h1>ApplyPilot Dashboard</h1>
-<p class="subtitle">{total} jobs &middot; {scored} scored &middot; {high_fit} strong matches (7+)</p>
+<p class="subtitle">{total} jobs &middot; {scored} scored &middot; {high_fit} strong matches (7+) &middot; {watchlist_count} watchlist</p>
 
 <div class="summary">
   <div class="stat-card stat-total"><div class="stat-num">{total}</div><div class="stat-label">Total Jobs</div></div>
   <div class="stat-card stat-ok"><div class="stat-num">{ready}</div><div class="stat-label">Ready (desc + URL)</div></div>
   <div class="stat-card stat-scored"><div class="stat-num">{scored}</div><div class="stat-label">Scored by LLM</div></div>
   <div class="stat-card stat-high"><div class="stat-num">{high_fit}</div><div class="stat-label">Strong Fit (7+)</div></div>
+  <div class="stat-card stat-high"><div class="stat-num">{watchlist_count}</div><div class="stat-label">Watchlist Jobs</div></div>
 </div>
 
 <div class="filters">

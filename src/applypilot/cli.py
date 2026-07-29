@@ -303,6 +303,7 @@ def status() -> None:
     summary.add_column("Count", justify="right")
 
     summary.add_row("Total jobs discovered", str(stats["total"]))
+    summary.add_row("Watchlist jobs", str(stats["watchlist"]))
     summary.add_row("With full description", str(stats["with_description"]))
     summary.add_row("Pending enrichment", str(stats["pending_detail"]))
     summary.add_row("Enrichment errors", str(stats["detail_errors"]))
@@ -316,6 +317,23 @@ def status() -> None:
     summary.add_row("Apply errors", str(stats["apply_errors"]))
 
     console.print(summary)
+
+    from applypilot.discovery.watchlist import load_watchlist_report
+
+    watchlist = load_watchlist_report()
+    if watchlist["configured"]:
+        watch_table = Table(
+            title="\nPriority Company Watchlist",
+            show_header=True,
+            header_style="bold green",
+        )
+        watch_table.add_column("Company")
+        watch_table.add_column("Registry")
+        for company in watchlist["configured"]:
+            present = company in watchlist["present"]
+            status_text = "[green]configured[/green]" if present else "[yellow]missing[/yellow]"
+            watch_table.add_row(company, status_text)
+        console.print(watch_table)
 
     # Score distribution
     if stats["score_distribution"]:

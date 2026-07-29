@@ -17,6 +17,11 @@ from applypilot.discovery.filters import (
     title_is_excluded,
     title_matches_queries,
 )
+from applypilot.discovery.watchlist import (
+    prioritize_registry,
+    update_existing_watchlist,
+    watchlist_fields,
+)
 
 log = logging.getLogger(__name__)
 
@@ -91,17 +96,28 @@ def _salary(raw: dict) -> str | None:
     return str(value).strip() if value else None
 
 
-def normalize_job(board_key: str, board: dict, raw: dict, now: str) -> dict:
+def normalize_job(
+    board_key: str,
+    board: dict,
+    raw: dict,
+    now: str,
+    watchlist: list[str] | None = None,
+) -> dict:
     """Normalize one Ashby posting into ApplyPilot's database schema."""
     description = str(raw.get("descriptionPlain") or "").strip()
     url = raw.get("jobUrl", "")
+    company = board.get("name", board_key)
+    is_watchlist, watchlist_name = watchlist_fields(company, watchlist)
     return {
         "url": url,
         "title": raw.get("title", ""),
         "salary": _salary(raw),
         "description": description[:500] or None,
         "location": _location(raw),
-        "site": board.get("name", board_key),
+        "site": company,
+        "company": company,
+        "is_watchlist": is_watchlist,
+        "watchlist_name": watchlist_name,
         "strategy": "ashby_api",
         "discovered_at": now,
         "full_description": description or None,
@@ -175,10 +191,11 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
             conn.execute(
                 """
                 INSERT INTO jobs (
-                    url, title, salary, description, location, site, strategy,
+                    url, title, salary, description, location, site, company,
+                    is_watchlist, watchlist_name, strategy,
                     discovered_at, full_description, application_url,
                     detail_scraped_at, detail_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job["url"],
@@ -187,6 +204,9 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
                     job["description"],
                     job["location"],
                     job["site"],
+                    job["company"],
+                    job["is_watchlist"],
+                    job["watchlist_name"],
                     job["strategy"],
                     job["discovered_at"],
                     job["full_description"],
@@ -198,6 +218,13 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict]) -> tuple[int, int]:
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            update_existing_watchlist(
+                conn,
+                job["url"],
+                job["company"],
+                job["is_watchlist"],
+                job["watchlist_name"],
+            )
     conn.commit()
     return new, existing
 
@@ -215,6 +242,8 @@ def run_ashby_discovery(
         return {"found": 0, "new": 0, "existing": 0, "errors": 0, "boards": 0}
 
     search_cfg = config.load_search_config()
+    watchlist = search_cfg.get("watchlist", [])
+    boards = prioritize_registry(boards, watchlist)
     timeout = search_cfg.get("defaults", {}).get("source_timeout_seconds", 30)
     now = datetime.now(timezone.utc).isoformat()
     if conn is None:
@@ -243,7 +272,9 @@ def run_ashby_discovery(
         if raw_jobs is None:
             continue
         selected = filter_jobs(raw_jobs, search_cfg)
-        normalized = [normalize_job(key, board, raw, now) for raw in selected]
+        normalized = [
+            normalize_job(key, board, raw, now, watchlist) for raw in selected
+        ]
         board_new, board_existing = store_jobs(conn, normalized)
         found += len(normalized)
         new += board_new

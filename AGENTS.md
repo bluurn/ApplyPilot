@@ -134,23 +134,27 @@ The fork already includes:
 - 15 verified Europe-relevant Lever sites in the Europe profile
 - first-class Ashby Job Postings API discovery with compensation data
 - 23 verified Europe-relevant Ashby boards in the Europe profile
+- exact normalized company watchlist matching without fuzzy scoring
+- watchlist-first ATS ordering and persistent company/watchlist job fields
+- watchlist coverage in status output and priority cards in the dashboard
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Add a configurable high-priority company watchlist across discovery sources.
+Add transparent, configurable ranking signals for discovery quality.
 
 Requirements:
 
-1. Load watchlist company names from search configuration.
-2. Match normalized source/company names without opaque fuzzy scoring.
-3. Search watchlist employers before the remaining registry entries.
-4. Preserve watchlist status on discovered jobs in an inspectable database
-   field.
-5. Surface watchlist jobs prominently in status/dashboard output.
-6. Keep missing or temporarily broken watchlist companies visible in results.
-7. Add focused ordering, matching, persistence, and reporting tests.
+1. Store individual signal values rather than only an opaque final score.
+2. Include Python/backend fit, Germany/Europe relevance, remote eligibility,
+   relocation support, salary quality, and watchlist membership.
+3. Keep weights configurable in search configuration.
+4. Avoid double-counting closely related signals.
+5. Explain positive and negative contributions in status/dashboard output.
+6. Preserve the existing LLM fit score while adding deterministic discovery
+   ranking alongside it.
+7. Add focused signal, weighting, persistence, and ordering tests.
 
 ## Discovery Roadmap
 
