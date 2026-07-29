@@ -21,7 +21,7 @@ from html.parser import HTMLParser
 from applypilot import config
 from applypilot.database import init_db
 from applypilot.discovery.filters import (
-    location_is_allowed,
+    evaluate_location,
     title_is_excluded,
     title_matches_queries,
 )
@@ -123,7 +123,10 @@ def filter_jobs(raw_jobs: list[dict], search_cfg: dict) -> list[dict]:
     ]
     exclude_titles = search_cfg.get("exclude_titles", [])
     accept_locations = search_cfg.get("location_accept", [])
-    reject_locations = search_cfg.get("location_reject_non_remote", [])
+    reject_locations = [
+        *search_cfg.get("location_reject_non_remote", []),
+        *search_cfg.get("location_reject_remote", []),
+    ]
 
     filtered = []
     for job in raw_jobs:
@@ -136,7 +139,19 @@ def filter_jobs(raw_jobs: list[dict], search_cfg: dict) -> list[dict]:
             continue
         if not title_matches_queries(title, queries):
             continue
-        if not location_is_allowed(location, accept_locations, reject_locations):
+        decision = evaluate_location(
+            location,
+            accept_locations,
+            reject_locations,
+            job.get("content"),
+        )
+        if not decision.allowed:
+            log.debug(
+                "Filtered %s location %r: %s",
+                job.get("title"),
+                location,
+                decision.reason,
+            )
             continue
         filtered.append(job)
     return filtered

@@ -19,7 +19,7 @@ from html.parser import HTMLParser
 
 from applypilot import config
 from applypilot.database import get_connection, init_db
-from applypilot.discovery.filters import title_is_excluded
+from applypilot.discovery.filters import evaluate_location, title_is_excluded
 
 log = logging.getLogger(__name__)
 
@@ -39,29 +39,19 @@ def _load_location_filter(search_cfg: dict | None = None):
         search_cfg = config.load_search_config()
 
     accept = search_cfg.get("location_accept", [])
-    reject = search_cfg.get("location_reject_non_remote", [])
+    reject = [
+        *search_cfg.get("location_reject_non_remote", []),
+        *search_cfg.get("location_reject_remote", []),
+    ]
     return accept, reject
 
 
 def _location_ok(location: str | None, accept: list[str], reject: list[str]) -> bool:
-    """Check if a job location passes the user's location filter."""
-    if not location:
-        return True
-
-    loc = location.lower()
-
-    if any(r in loc for r in ("remote", "anywhere", "work from home", "wfh", "distributed")):
-        return True
-
-    for r in reject:
-        if r.lower() in loc:
-            return False
-
-    for a in accept:
-        if a.lower() in loc:
-            return True
-
-    return False
+    """Check location eligibility and log an inspectable rejection reason."""
+    decision = evaluate_location(location, accept, reject)
+    if not decision.allowed:
+        log.debug("Filtered Workday location %r: %s", location, decision.reason)
+    return decision.allowed
 
 
 # -- HTML stripper -----------------------------------------------------------

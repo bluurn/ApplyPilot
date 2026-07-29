@@ -130,7 +130,7 @@ API keys and runtime config: `GEMINI_API_KEY`, `LLM_MODEL`, `CAPSOLVER_API_KEY` 
 ## How Stages Work
 
 ### Discover
-Queries Indeed, LinkedIn, Glassdoor, ZipRecruiter, and Google Jobs via JobSpy. Scrapes 44 Workday employer portals and 9 Greenhouse boards from profile-aware registries, then hits 30 direct career sites with custom extractors. ATS sources isolate employer failures and all sources deduplicate by URL.
+Queries Indeed, LinkedIn, Glassdoor, ZipRecruiter, and Google Jobs via JobSpy. Scrapes 44 Workday employer portals and 9 Greenhouse boards from profile-aware registries, then hits 30 direct career sites with custom extractors. A shared policy rejects incompatible local and country-restricted remote roles while preserving explicit Europe locations, worldwide or unspecified remote roles, and jobs offering relocation or visa sponsorship. ATS sources isolate employer failures and all sources deduplicate by URL.
 
 ### Enrich
 Visits each job URL and extracts the full description. 3-tier cascade: JSON-LD structured data, then CSS selector patterns, then AI-powered extraction for unknown layouts.

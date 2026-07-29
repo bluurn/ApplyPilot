@@ -121,24 +121,24 @@ The fork already includes:
 - isolated JobSpy board subprocesses with hard timeouts and partial-result retention
 - first-class Greenhouse public API discovery with per-employer failure isolation
 - 9 verified Europe-relevant Greenhouse boards in the Europe profile
+- shared inspectable location eligibility decisions across all discovery sources
+- country-restricted remote filtering with relocation and sponsorship preservation
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Enforce stronger Europe and remote eligibility filtering across discovery sources.
+Add Lever as the next first-class ATS discovery source.
 
 Requirements:
 
-1. Distinguish Europe-compatible remote roles from country-restricted remote
-   roles instead of accepting every title containing "remote".
-2. Preserve Germany, EU/Europe, and worthwhile relocation roles.
-3. Reject clearly incompatible geography before enrichment and scoring.
-4. Share the location policy across JobSpy, Workday, Greenhouse, and smart
-   extraction where their source data permits.
-5. Record or log an inspectable reason when a job is rejected.
-6. Add focused tests for ambiguous, multi-location, remote-restricted, and
-   relocation cases.
+1. Use Lever's public postings API without a browser or LLM.
+2. Load employer site identifiers from the runtime registry.
+3. Isolate failures per employer and retain partial results.
+4. Normalize jobs into the existing database fields and deduplicate by URL.
+5. Apply shared title and location eligibility decisions before storage.
+6. Seed and live-verify an initial Europe-relevant employer batch.
+7. Add focused API, normalization, filtering, and failure-isolation tests.
 
 ## Discovery Roadmap
 
@@ -149,7 +149,7 @@ Requirements:
 - Add Lever.
 - Add Ashby.
 - Improve Europe-relevant JobSpy coverage.
-- Enforce strong Europe and remote filtering.
+- Extend strong Europe and remote filtering as new source data permits.
 
 ### Watchlist
 

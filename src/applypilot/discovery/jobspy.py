@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from applypilot import config
 from applypilot.database import get_connection, init_db
-from applypilot.discovery.filters import title_is_excluded
+from applypilot.discovery.filters import evaluate_location, title_is_excluded
 from applypilot.subprocess_runner import run_in_subprocess
 
 log = logging.getLogger(__name__)
@@ -109,37 +109,24 @@ def _load_location_config(search_cfg: dict) -> tuple[list[str], list[str]]:
     Falls back to sensible defaults if not defined in the YAML.
     """
     accept = search_cfg.get("location_accept", [])
-    reject = search_cfg.get("location_reject_non_remote", [])
+    reject = [
+        *search_cfg.get("location_reject_non_remote", []),
+        *search_cfg.get("location_reject_remote", []),
+    ]
     return accept, reject
 
 
-def _location_ok(location: str | None, accept: list[str], reject: list[str]) -> bool:
-    """Check if a job location passes the user's location filter.
-
-    Remote jobs are always accepted. Non-remote jobs must match an accept
-    pattern and not match a reject pattern.
-    """
-    if not location:
-        return True  # unknown location -- keep it, let scorer decide
-
-    loc = location.lower()
-
-    # Remote jobs always OK
-    if any(r in loc for r in ("remote", "anywhere", "work from home", "wfh", "distributed")):
-        return True
-
-    # Reject non-remote matches
-    for r in reject:
-        if r.lower() in loc:
-            return False
-
-    # Accept matches
-    for a in accept:
-        if a.lower() in loc:
-            return True
-
-    # No match -- reject unknown
-    return False
+def _location_ok(
+    location: str | None,
+    accept: list[str],
+    reject: list[str],
+    context: str | None = None,
+) -> bool:
+    """Check location eligibility and log an inspectable rejection reason."""
+    decision = evaluate_location(location, accept, reject, context)
+    if not decision.allowed:
+        log.debug("Filtered JobSpy location %r: %s", location, decision.reason)
+    return decision.allowed
 
 
 # -- DB storage (JobSpy DataFrame -> SQLite) ---------------------------------
@@ -335,7 +322,11 @@ def _run_one_search(
     )]
     df = df[df.apply(lambda row: _location_ok(
         str(row.get("location", "")) if str(row.get("location", "")) != "nan" else None,
-        accept_locs, reject_locs,
+        accept_locs,
+        reject_locs,
+        str(row.get("description", ""))
+        if str(row.get("description", "")) != "nan"
+        else None,
     ), axis=1)]
     filtered = before - len(df)
 

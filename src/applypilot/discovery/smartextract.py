@@ -29,7 +29,7 @@ from playwright.sync_api import sync_playwright
 from applypilot import config
 from applypilot.config import CONFIG_DIR
 from applypilot.database import init_db, get_stats
-from applypilot.discovery.filters import title_is_excluded
+from applypilot.discovery.filters import evaluate_location, title_is_excluded
 from applypilot.llm import get_client
 
 log = logging.getLogger(__name__)
@@ -52,24 +52,24 @@ def _load_location_filter(search_cfg: dict | None = None):
     if search_cfg is None:
         search_cfg = config.load_search_config()
     accept = search_cfg.get("location_accept", [])
-    reject = search_cfg.get("location_reject_non_remote", [])
+    reject = [
+        *search_cfg.get("location_reject_non_remote", []),
+        *search_cfg.get("location_reject_remote", []),
+    ]
     return accept, reject
 
 
-def _location_ok(location: str | None, accept: list[str], reject: list[str]) -> bool:
-    """Check if a job location passes the user's location filter."""
-    if not location:
-        return True
-    loc = location.lower()
-    if any(r in loc for r in ("remote", "anywhere", "work from home", "wfh", "distributed")):
-        return True
-    for r in reject:
-        if r.lower() in loc:
-            return False
-    for a in accept:
-        if a.lower() in loc:
-            return True
-    return False
+def _location_ok(
+    location: str | None,
+    accept: list[str],
+    reject: list[str],
+    context: str | None = None,
+) -> bool:
+    """Check location eligibility and log an inspectable rejection reason."""
+    decision = evaluate_location(location, accept, reject, context)
+    if not decision.allowed:
+        log.debug("Filtered smart-extract location %r: %s", location, decision.reason)
+    return decision.allowed
 
 
 # -- Site configuration from YAML --------------------------------------------
@@ -106,7 +106,12 @@ def _store_jobs_filtered(
         if title_is_excluded(job.get("title"), exclude_titles):
             filtered += 1
             continue
-        if not _location_ok(job.get("location"), accept_locs, reject_locs):
+        if not _location_ok(
+            job.get("location"),
+            accept_locs,
+            reject_locs,
+            job.get("description"),
+        ):
             filtered += 1
             continue
         try:
