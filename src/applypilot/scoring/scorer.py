@@ -31,6 +31,49 @@ def _has_explicit_geography(location: str | None) -> bool:
     return normalized not in generic
 
 
+def _canonical_role_title(title: str | None) -> str:
+    """Remove ATS country variants while preserving the actual role title."""
+    value = (title or "").replace("\xa0", " ").strip()
+    match = re.match(
+        r"^(.*?)\s*\|\s*([^|]+?)\s*\|\s*remote\s*$",
+        value,
+        re.IGNORECASE,
+    )
+    if not match:
+        return value
+    location = _normalized(match.group(2))
+    country_suffixes = {
+        "austria", "belgium", "czech republic", "denmark", "finland",
+        "france", "germany", "greece", "ireland", "italy", "netherlands",
+        "norway", "poland", "portugal", "republic of ireland", "spain",
+        "sweden", "switzerland", "united kingdom", "uk", "europe",
+    }
+    return match.group(1).strip() if location in country_suffixes else value
+
+
+def _title_is_preferred(title: str | None, scoring_cfg: dict) -> bool:
+    normalized = _normalized(title)
+    phrases = scoring_cfg.get(
+        "preferred_title_phrases",
+        [
+            "backend",
+            "python",
+            "full stack",
+            "fullstack",
+            "software engineer",
+            "software developer",
+            "product engineer",
+            "platform engineer",
+            "infrastructure engineer",
+            "site reliability engineer",
+            "devops engineer",
+            "technical lead",
+            "software architect",
+        ],
+    )
+    return any(_normalized(phrase) in normalized for phrase in phrases if phrase)
+
+
 def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
     """Persist current eligibility and semantic duplicate decisions."""
     accept = search_cfg.get("location_accept", [])
@@ -55,10 +98,17 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
             """
             UPDATE jobs
             SET eligibility_allowed = ?, eligibility_reason = ?,
-                eligibility_audited_at = ?, duplicate_of = NULL
+                eligibility_audited_at = ?, duplicate_of = NULL,
+                scoring_eligible = 0, scoring_eligibility_reason = ?
             WHERE url = ?
             """,
-            (int(decision.allowed), decision.reason, now, job["url"]),
+            (
+                int(decision.allowed),
+                decision.reason,
+                now,
+                decision.reason if not decision.allowed else "pending_audit",
+                job["url"],
+            ),
         )
         if decision.allowed:
             eligible += 1
@@ -70,7 +120,7 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
         groups[
             (
                 _normalized(job.get("company") or job.get("site")),
-                _normalized(job.get("title")),
+                _normalized(_canonical_role_title(job.get("title"))),
             )
         ].append(job)
 
@@ -81,6 +131,7 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
         ordered = sorted(
             group,
             key=lambda job: (
+                job.get("fit_score") is not None,
                 bool(job.get("is_watchlist")),
                 float(job.get("discovery_score") or 0),
                 bool(job.get("application_url")),
@@ -111,11 +162,68 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
                 duplicate_count += 1
             else:
                 canonical.append(job)
+
+    scoring_cfg = search_cfg.get("scoring", {})
+    threshold = float(scoring_cfg.get("min_discovery_score", 5))
+    refreshed = [dict(row) for row in conn.execute("SELECT * FROM jobs").fetchall()]
+    candidate_count = 0
+    for job in refreshed:
+        if not job.get("eligibility_allowed"):
+            allowed = False
+            reason = job.get("eligibility_reason") or "geography_rejected"
+        elif job.get("duplicate_of"):
+            allowed = False
+            reason = "duplicate_posting"
+        elif job.get("is_watchlist"):
+            allowed = True
+            reason = "watchlist"
+        elif float(job.get("discovery_score") or 0) < threshold:
+            allowed = False
+            reason = "rank_below_threshold"
+        elif not _title_is_preferred(job.get("title"), scoring_cfg):
+            allowed = False
+            reason = "title_not_preferred"
+        else:
+            allowed = True
+            reason = "preferred_title"
+        conn.execute(
+            """
+            UPDATE jobs
+            SET scoring_eligible = ?, scoring_eligibility_reason = ?
+            WHERE url = ?
+            """,
+            (int(allowed), reason, job["url"]),
+        )
+        candidate_count += int(allowed)
+    conn.execute(
+        """
+        UPDATE jobs
+        SET fit_score = (
+                SELECT canonical.fit_score FROM jobs AS canonical
+                WHERE canonical.url = jobs.duplicate_of
+            ),
+            score_reasoning = (
+                SELECT canonical.score_reasoning FROM jobs AS canonical
+                WHERE canonical.url = jobs.duplicate_of
+            ),
+            scored_at = (
+                SELECT canonical.scored_at FROM jobs AS canonical
+                WHERE canonical.url = jobs.duplicate_of
+            )
+        WHERE duplicate_of IS NOT NULL
+          AND EXISTS (
+              SELECT 1 FROM jobs AS canonical
+              WHERE canonical.url = jobs.duplicate_of
+                AND canonical.fit_score IS NOT NULL
+          )
+        """
+    )
     conn.commit()
     return {
         "eligible": eligible,
         "rejected": rejected,
         "duplicates": duplicate_count,
+        "scoring_candidates": candidate_count,
     }
 
 
@@ -159,9 +267,10 @@ def _parse_score_response(response: str) -> dict:
         line = line.strip()
         if line.startswith("SCORE:"):
             try:
-                score = int(re.search(r"\d+", line).group())
-                score = max(1, min(10, score))
-            except (AttributeError, ValueError):
+                match = re.search(r"\d+", line)
+                if match:
+                    score = max(1, min(10, int(match.group())))
+            except ValueError:
                 score = 0
         elif line.startswith("KEYWORDS:"):
             keywords = line.replace("KEYWORDS:", "").strip()
@@ -229,6 +338,7 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
             WHERE full_description IS NOT NULL
               AND eligibility_allowed = 1
               AND duplicate_of IS NULL
+              AND scoring_eligible = 1
         """
         if limit > 0:
             query += f" LIMIT {limit}"
@@ -244,21 +354,23 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
               AND fit_score IS NULL
               AND eligibility_allowed = 1
               AND duplicate_of IS NULL
-              AND (is_watchlist = 1 OR COALESCE(discovery_score, 0) >= ?)
+              AND scoring_eligible = 1
             ORDER BY is_watchlist DESC, discovery_score DESC, discovered_at DESC
             LIMIT ?
             """,
-            (min_discovery_score, shortlist_limit),
+            (shortlist_limit,),
         ).fetchall()
         pending_total = conn.execute(
             """
             SELECT COUNT(*) FROM jobs
             WHERE full_description IS NOT NULL AND fit_score IS NULL
+              AND scoring_eligible = 1
             """
         ).fetchone()[0]
         if pending_total > len(jobs):
             log.info(
-                "Shortlisted %d/%d pending jobs (rank >= %.1f or watchlist).",
+                "Shortlisted %d/%d eligible canonical jobs "
+                "(preferred title at rank >= %.1f or watchlist).",
                 len(jobs),
                 pending_total,
                 min_discovery_score,
@@ -297,9 +409,18 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
     # Write scores to DB
     now = datetime.now(timezone.utc).isoformat()
     for r in results:
+        reasoning = f"{r['keywords']}\n{r['reasoning']}"
         conn.execute(
             "UPDATE jobs SET fit_score = ?, score_reasoning = ?, scored_at = ? WHERE url = ?",
-            (r["score"], f"{r['keywords']}\n{r['reasoning']}", now, r["url"]),
+            (r["score"], reasoning, now, r["url"]),
+        )
+        conn.execute(
+            """
+            UPDATE jobs
+            SET fit_score = ?, score_reasoning = ?, scored_at = ?
+            WHERE duplicate_of = ?
+            """,
+            (r["score"], reasoning, now, r["url"]),
         )
     conn.commit()
 

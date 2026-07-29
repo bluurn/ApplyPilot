@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from applypilot.database import init_db
 from applypilot import today
+from applypilot.database import init_db
 
 
 def test_today_report_surfaces_new_best_watchlist_companies_and_applied(
@@ -16,8 +16,9 @@ def test_today_report_surfaces_new_best_watchlist_companies_and_applied(
         """
         INSERT INTO jobs (
             url, title, company, site, location, salary, full_description,
-            is_watchlist, watchlist_name, discovered_at, applied_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            is_watchlist, watchlist_name, discovered_at, applied_at, fit_score,
+            application_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -32,6 +33,8 @@ def test_today_report_surfaces_new_best_watchlist_companies_and_applied(
                 "JetBrains",
                 recent,
                 None,
+                5,
+                "https://jetbrains.example/apply",
             ),
             (
                 "ordinary",
@@ -45,6 +48,8 @@ def test_today_report_surfaces_new_best_watchlist_companies_and_applied(
                 None,
                 old,
                 recent,
+                9,
+                "https://ordinary.example/apply",
             ),
         ],
     )
@@ -62,9 +67,10 @@ def test_today_report_surfaces_new_best_watchlist_companies_and_applied(
     report = today.build_today_report(conn, now=now, days=1, limit=10)
 
     assert [job["url"] for job in report["new_jobs"]] == ["jetbrains"]
-    assert report["best_matches"][0]["url"] == "jetbrains"
+    assert report["best_matches"][0]["url"] == "ordinary"
     assert report["watchlist_jobs"][0]["watchlist_name"] == "JetBrains"
     assert report["new_companies"][0]["company"] == "JetBrains"
     assert report["applied"][0]["url"] == "ordinary"
     assert report["watchlist"]["missing"] == ["Canonical"]
     assert "technical +" in report["best_matches"][0]["discovery_explanation"]
+    assert report["new_jobs"][0]["application_url"].endswith("/apply")

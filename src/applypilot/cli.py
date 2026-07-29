@@ -7,6 +7,7 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from applypilot import __version__
@@ -291,9 +292,16 @@ def status() -> None:
     """Show pipeline statistics from the database."""
     _bootstrap()
 
-    from applypilot.database import get_stats
+    from applypilot import config
+    from applypilot.database import get_connection, get_stats
+    from applypilot.scoring.scorer import audit_scoring_candidates
 
-    stats = get_stats()
+    conn = get_connection()
+    audit_scoring_candidates(conn, config.load_search_config())
+    stats = get_stats(conn)
+    shortlist_limit = int(
+        config.load_search_config().get("scoring", {}).get("shortlist_limit", 100)
+    )
 
     console.print("\n[bold]ApplyPilot Pipeline Status[/bold]\n")
 
@@ -311,7 +319,14 @@ def status() -> None:
     summary.add_row("Pending enrichment", str(stats["pending_detail"]))
     summary.add_row("Enrichment errors", str(stats["detail_errors"]))
     summary.add_row("Scored by LLM", str(stats["scored"]))
-    summary.add_row("Pending scoring", str(stats["unscored"]))
+    summary.add_row("Unscored descriptions", str(stats["unscored"]))
+    summary.add_row(
+        "Eligible canonical unscored", str(stats["scoring_candidates"])
+    )
+    summary.add_row(
+        "Next paid shortlist",
+        str(min(stats["scoring_candidates"], shortlist_limit)),
+    )
     summary.add_row("Tailored resumes", str(stats["tailored"]))
     summary.add_row("Pending tailoring (7+)", str(stats["untailored_eligible"]))
     summary.add_row("Cover letters", str(stats["with_cover_letter"]))
@@ -397,6 +412,7 @@ def today(
         table.add_column("Rank", justify="right")
         table.add_column("LLM", justify="right")
         table.add_column("Why")
+        table.add_column("Link")
         for job in jobs:
             company = job.get("company") or job.get("site") or "Unknown"
             if job.get("is_watchlist"):
@@ -408,6 +424,11 @@ def today(
                 f"{job.get('discovery_score') or 0:g}",
                 str(job.get("fit_score") or "—"),
                 job.get("discovery_explanation") or "",
+                (
+                    f"[link={escape(job.get('application_url') or job['url'])}]open[/link]"
+                    if job.get("application_url") or job.get("url")
+                    else ""
+                ),
             )
         if jobs:
             console.print(table)

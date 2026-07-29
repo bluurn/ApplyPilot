@@ -34,6 +34,20 @@ ranking:
 scoring:
   min_discovery_score: 5
   shortlist_limit: 100
+  preferred_title_phrases:
+    - "backend"
+    - "python"
+    - "full stack"
+    - "fullstack"
+    - "software engineer"
+    - "software developer"
+    - "product engineer"
+    - "platform engineer"
+    - "infrastructure engineer"
+    - "site reliability engineer"
+    - "devops engineer"
+    - "technical lead"
+    - "software architect"
 
 # Bound fallback detail-extraction prompts for pages without structured data.
 enrichment:

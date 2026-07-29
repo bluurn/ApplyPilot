@@ -14,8 +14,8 @@ def test_scoring_shortlists_by_rank_and_always_keeps_watchlist(
         ) VALUES (?, ?, ?, ?, ?)
         """,
         [
-            ("strong", "Strong", "x" * 300, 8, 0),
-            ("weak", "Weak", "x" * 300, 2, 0),
+            ("strong", "Backend Engineer", "x" * 300, 8, 0),
+            ("weak", "Marketing Manager", "x" * 300, 8, 0),
             ("watched", "Watched", "x" * 300, 1, 1),
         ],
     )
@@ -48,10 +48,13 @@ def test_scoring_shortlists_by_rank_and_always_keeps_watchlist(
     result = scorer.run_scoring()
 
     assert result["scored"] == 2
-    assert scored_titles == ["Watched", "Strong"]
+    assert scored_titles == ["Watched", "Backend Engineer"]
     assert conn.execute(
         "SELECT fit_score FROM jobs WHERE url = 'weak'"
     ).fetchone()[0] is None
+    assert conn.execute(
+        "SELECT scoring_eligibility_reason FROM jobs WHERE url = 'weak'"
+    ).fetchone()[0] == "title_not_preferred"
 
 
 def test_scoring_audits_location_and_suppresses_semantic_duplicates(
@@ -107,3 +110,72 @@ def test_scoring_audits_location_and_suppresses_semantic_duplicates(
     assert conn.execute(
         "SELECT eligibility_reason FROM jobs WHERE url = 'india'"
     ).fetchone()[0] == "remote_location_not_accepted"
+
+
+def test_scoring_collapses_country_variants_and_shares_score(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    conn = init_db(tmp_path / "jobs.db")
+    description = "Build distributed Python backend services. " * 20
+    conn.executemany(
+        """
+        INSERT INTO jobs (
+            url, title, company, location, full_description,
+            discovery_score, is_watchlist
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                "germany",
+                "Senior Backend Engineer | Germany | Remote",
+                "Grafana Labs",
+                "Germany (Remote)",
+                description,
+                8,
+                1,
+            ),
+            (
+                "spain",
+                "Senior Backend Engineer | Spain | Remote",
+                "Grafana Labs",
+                "Spain (Remote)",
+                description,
+                7,
+                1,
+            ),
+        ],
+    )
+    conn.commit()
+    resume = tmp_path / "resume.md"
+    resume.write_text("resume", encoding="utf-8")
+    monkeypatch.setattr(scorer, "RESUME_PATH", resume)
+    monkeypatch.setattr(scorer, "get_connection", lambda: conn)
+    monkeypatch.setattr(
+        scorer.config,
+        "load_search_config",
+        lambda: {
+            "location_accept": ["Germany", "Spain"],
+            "scoring": {"min_discovery_score": 5, "shortlist_limit": 10},
+        },
+    )
+    scored = []
+    monkeypatch.setattr(
+        scorer,
+        "score_job",
+        lambda _resume, job: (
+            scored.append(job["url"])
+            or {"score": 9, "keywords": "Python", "reasoning": "strong"}
+        ),
+    )
+
+    result = scorer.run_scoring()
+
+    assert result["scored"] == 1
+    assert scored == ["germany"]
+    assert conn.execute(
+        "SELECT duplicate_of FROM jobs WHERE url = 'spain'"
+    ).fetchone()[0] == "germany"
+    assert conn.execute(
+        "SELECT fit_score FROM jobs WHERE url = 'spain'"
+    ).fetchone()[0] == 9

@@ -46,13 +46,20 @@ def build_today_report(
     select = """
         SELECT url, title, company, site, location, salary, discovered_at,
                fit_score, discovery_score, discovery_signals, is_watchlist,
-               watchlist_name, applied_at
+               watchlist_name, applied_at, application_url
         FROM jobs
     """
-    order = """
+    discovery_order = """
         ORDER BY is_watchlist DESC,
                  discovery_score DESC NULLS LAST,
                  fit_score DESC NULLS LAST,
+                 discovered_at DESC
+        LIMIT ?
+    """
+    fit_order = """
+        ORDER BY fit_score DESC NULLS LAST,
+                 discovery_score DESC NULLS LAST,
+                 is_watchlist DESC,
                  discovered_at DESC
         LIMIT ?
     """
@@ -65,7 +72,7 @@ def build_today_report(
                 AND eligibility_allowed IS NOT 0
                 AND duplicate_of IS NULL
             """
-            + order,
+            + discovery_order,
             (since_value, limit_value),
         )
     )
@@ -77,7 +84,7 @@ def build_today_report(
               WHERE eligibility_allowed IS NOT 0
                 AND duplicate_of IS NULL
             """
-            + order,
+            + fit_order,
             (limit_value,),
         )
     )
@@ -90,7 +97,7 @@ def build_today_report(
                 AND eligibility_allowed IS NOT 0
                 AND duplicate_of IS NULL
             """
-            + order,
+            + fit_order,
             (limit_value,),
         )
     )
@@ -109,6 +116,8 @@ def build_today_report(
         SELECT company, MIN(discovered_at) AS first_seen, COUNT(*) AS jobs
         FROM jobs
         WHERE company IS NOT NULL AND company != ''
+          AND eligibility_allowed IS NOT 0
+          AND duplicate_of IS NULL
         GROUP BY company
         HAVING datetime(first_seen) >= datetime(?)
         ORDER BY first_seen DESC

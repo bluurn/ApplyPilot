@@ -106,6 +106,8 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             eligibility_reason    TEXT,
             eligibility_audited_at TEXT,
             duplicate_of          TEXT,
+            scoring_eligible      INTEGER,
+            scoring_eligibility_reason TEXT,
             strategy              TEXT,
             source_id             TEXT,
             discovered_at         TEXT,
@@ -172,6 +174,8 @@ _ALL_COLUMNS: dict[str, str] = {
     "eligibility_reason": "TEXT",
     "eligibility_audited_at": "TEXT",
     "duplicate_of": "TEXT",
+    "scoring_eligible": "INTEGER",
+    "scoring_eligibility_reason": "TEXT",
     "strategy": "TEXT",
     "source_id": "TEXT",
     "discovered_at": "TEXT",
@@ -303,6 +307,11 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
     stats["unscored"] = conn.execute(
         "SELECT COUNT(*) FROM jobs "
         "WHERE full_description IS NOT NULL AND fit_score IS NULL"
+    ).fetchone()[0]
+    stats["scoring_candidates"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs "
+        "WHERE full_description IS NOT NULL AND fit_score IS NULL "
+        "AND scoring_eligible = 1"
     ).fetchone()[0]
 
     # Score distribution
