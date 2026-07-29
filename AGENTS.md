@@ -140,6 +140,10 @@ The fork already includes:
 - transparent configurable discovery ranking with persisted signal contributions
 - deterministic ranking before and after enrichment without replacing LLM fit scores
 - daily review workflow via `applypilot today`
+- per-target Smart Extract failure isolation and in-crawl selector reuse
+- supported worldwide fallback for Europe-wide LinkedIn remote searches
+- Workday source identity deduplication before repeated detail fetches
+- deterministic paid-scoring shortlist with unconditional watchlist inclusion
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 

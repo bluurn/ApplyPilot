@@ -804,6 +804,38 @@ def execute_api_response(intel: dict, plan: dict) -> list[dict]:
     return jobs
 
 
+def apply_css_selectors(full_html: str, selectors: dict) -> list[dict]:
+    """Apply a previously validated selector plan to page HTML."""
+    soup = BeautifulSoup(full_html, "html.parser")
+    card_sel = selectors.get("job_card", "NONE")
+    try:
+        cards = soup.select(card_sel)
+    except Exception as e:
+        log.error("Invalid card selector '%s': %s", card_sel, e)
+        return []
+
+    log.info("Matched %d cards", len(cards))
+    jobs: list[dict] = []
+    for card in cards:
+        job: dict = {}
+        for field in ["title", "salary", "description", "location", "url"]:
+            sel = selectors.get(field)
+            if not sel or sel == "null":
+                job[field] = None
+                continue
+            try:
+                el = card.select_one(sel)
+            except Exception:
+                job[field] = None
+                continue
+            if el:
+                job[field] = el.get("href") if field == "url" else el.get_text(strip=True)
+            else:
+                job[field] = None
+        jobs.append(job)
+    return jobs
+
+
 def execute_css_selectors(intel: dict) -> tuple[dict, list[dict]]:
     """Phase 2: Send full cleaned page HTML to LLM for card detection + selector generation.
     Returns (selectors, jobs)."""
@@ -837,41 +869,16 @@ def execute_css_selectors(intel: dict) -> tuple[dict, list[dict]]:
 
     log.info("Selectors: %s", selectors)
 
-    # Apply selectors to the ORIGINAL full_html
-    soup = BeautifulSoup(full_html, "html.parser")
-    card_sel = selectors.get("job_card", "NONE")
-    try:
-        cards = soup.select(card_sel)
-    except Exception as e:
-        log.error("Invalid card selector '%s': %s", card_sel, e)
-        return selectors, []
-
-    log.info("Matched %d cards", len(cards))
-
-    jobs: list[dict] = []
-    for card in cards:
-        job: dict = {}
-        for field in ["title", "salary", "description", "location", "url"]:
-            sel = selectors.get(field)
-            if not sel or sel == "null":
-                job[field] = None
-                continue
-            try:
-                el = card.select_one(sel)
-            except Exception:
-                job[field] = None
-                continue
-            if el:
-                job[field] = el.get("href") if field == "url" else el.get_text(strip=True)
-            else:
-                job[field] = None
-        jobs.append(job)
-    return selectors, jobs
+    return selectors, apply_css_selectors(full_html, selectors)
 
 
 # -- Main per-site extraction ------------------------------------------------
 
-def _run_one_site(name: str, url: str) -> dict:
+def _run_one_site(
+    name: str,
+    url: str,
+    selector_cache: dict[str, dict] | None = None,
+) -> dict:
     """Run full smart extraction pipeline on one site URL."""
     log.info("=" * 60)
     log.info("%s: %s", name, url)
@@ -939,8 +946,15 @@ def _run_one_site(name: str, url: str) -> dict:
             log.info("Extraction plan: %s", json.dumps(plan.get("extraction", {}))[:300])
             jobs = execute_api_response(intel, plan)
         elif strategy == "css_selectors":
-            log.info("-> Phase 2: Generating selectors from card examples...")
-            selectors, jobs = execute_css_selectors(intel)
+            selectors = (selector_cache or {}).get(name)
+            if selectors:
+                log.info("-> Phase 2: Reusing cached selectors...")
+                jobs = apply_css_selectors(intel.get("full_html", ""), selectors)
+            else:
+                log.info("-> Phase 2: Generating selectors from card examples...")
+                selectors, jobs = execute_css_selectors(intel)
+                if selector_cache is not None and jobs:
+                    selector_cache[name] = selectors
             plan["extraction"] = selectors
         else:
             log.warning("Unknown strategy: %s", strategy)
@@ -1007,6 +1021,8 @@ def build_scrape_targets(
     targets: list[dict] = []
 
     for site in sites:
+        if not site.get("enabled", True):
+            continue
         site_url = site.get("url", "")
         site_name = site.get("name", "Unknown")
         site_type = site.get("type", "static")
@@ -1056,6 +1072,7 @@ def _run_all(
     results: list[dict] = []
     total_new = 0
     total_existing = 0
+    selector_cache: dict[str, dict] = {}
 
     def _process_result(r: dict, target: dict) -> None:
         nonlocal total_new, total_existing
@@ -1069,18 +1086,40 @@ def _run_all(
             total_existing += existing
             log.info("DB: +%d new, %d already existed", new, existing)
 
-    if workers > 1 and len(targets) > 1:
-        # Parallel mode
-        with ThreadPoolExecutor(max_workers=min(workers, len(targets))) as pool:
-            future_to_target = {
-                pool.submit(_run_one_site, target["name"], target["url"]): target
-                for target in targets
+    def _safe_run(target: dict) -> dict:
+        try:
+            return _run_one_site(target["name"], target["url"], selector_cache)
+        except Exception as exc:
+            log.error("%s: target failed: %s", target["name"], exc)
+            return {
+                "name": target["name"],
+                "status": "ERROR",
+                "error": str(exc),
+                "jobs": [],
             }
-            for future in as_completed(future_to_target):
-                target = future_to_target[future]
-                r = future.result()
-                results.append(r)
-                _process_result(r, target)
+
+    if workers > 1 and len(targets) > 1:
+        # Parallelize across sites while keeping queries for a given site
+        # sequential. This makes selector reuse deterministic and avoids
+        # concurrent LLM selector generation for identical page structures.
+        grouped_targets: dict[str, list[dict]] = {}
+        for target in targets:
+            grouped_targets.setdefault(target["name"], []).append(target)
+
+        def _run_group(group: list[dict]) -> list[tuple[dict, dict]]:
+            return [(_safe_run(target), target) for target in group]
+
+        with ThreadPoolExecutor(
+            max_workers=min(workers, len(grouped_targets))
+        ) as pool:
+            futures = {
+                pool.submit(_run_group, group): name
+                for name, group in grouped_targets.items()
+            }
+            for future in as_completed(futures):
+                for result, target in future.result():
+                    results.append(result)
+                    _process_result(result, target)
     else:
         # Sequential mode (default)
         for i, target in enumerate(targets):
@@ -1089,7 +1128,7 @@ def _run_all(
                 label = f"{target['name']} [{target['query']}]"
             log.info("[%d/%d] %s", i + 1, len(targets), label)
 
-            r = _run_one_site(target["name"], target["url"])
+            r = _safe_run(target)
             results.append(r)
             _process_result(r, target)
 
@@ -1131,14 +1170,23 @@ def run_smart_extract(
     accept_locs, reject_locs = _load_location_filter(search_cfg)
     exclude_titles = search_cfg.get("exclude_titles", [])
 
-    targets = build_scrape_targets(sites=sites, search_cfg=search_cfg)
+    configured_sites = sites or load_sites()
+    max_tier = search_cfg.get("smart_extract_max_tier", 1)
+    smart_cfg = dict(search_cfg)
+    smart_cfg["queries"] = [
+        query
+        for query in search_cfg.get("queries", [])
+        if query.get("tier", 99) <= max_tier
+    ]
+    targets = build_scrape_targets(sites=configured_sites, search_cfg=smart_cfg)
 
     if not targets:
         log.warning("No scrape targets configured. Create config/sites.yaml and searches.yaml.")
         return {"total_new": 0, "total_existing": 0, "passed": 0, "total": 0}
 
-    search_sites = sum(1 for s in (sites or load_sites()) if s.get("type") == "search")
-    static_sites = sum(1 for s in (sites or load_sites()) if s.get("type") != "search")
+    enabled_sites = [site for site in configured_sites if site.get("enabled", True)]
+    search_sites = sum(1 for s in enabled_sites if s.get("type") == "search")
+    static_sites = sum(1 for s in enabled_sites if s.get("type") != "search")
     log.info("Sites: %d searchable, %d static | Total targets: %d (workers=%d)",
              search_sites, static_sites, len(targets), workers)
 

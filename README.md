@@ -149,13 +149,13 @@ API keys and runtime config: `GEMINI_API_KEY`, `LLM_MODEL`, `CAPSOLVER_API_KEY` 
 ## How Stages Work
 
 ### Discover
-Queries Indeed, LinkedIn, Glassdoor, ZipRecruiter, and Google Jobs via JobSpy. Scrapes 44 Workday employer portals, 10 Greenhouse boards, 15 Lever sites, and 23 Ashby boards from profile-aware registries, then hits 30 direct career sites with custom extractors. A shared policy rejects incompatible local and country-restricted remote roles while preserving explicit Europe locations, worldwide or unspecified remote roles, and jobs offering relocation or visa sponsorship. ATS sources isolate employer failures and all sources deduplicate by URL. Each retained job also receives an inspectable deterministic rank from configurable technical, geography, relocation, salary, and watchlist signals; the separate AI fit score is preserved.
+Queries Indeed, LinkedIn, Glassdoor, ZipRecruiter, and Google Jobs via JobSpy. Scrapes 44 Workday employer portals, 10 Greenhouse boards, 15 Lever sites, and 23 Ashby boards from profile-aware registries, then checks selected direct career sites with custom extractors. A shared policy rejects incompatible local and country-restricted remote roles while preserving explicit Europe locations, worldwide or unspecified remote roles, and jobs offering relocation or visa sponsorship. ATS and direct-site failures are isolated, successful Smart Extract selectors are reused within a crawl, and all sources deduplicate jobs. Each retained job also receives an inspectable deterministic rank from configurable technical, geography, relocation, salary, and watchlist signals; the separate AI fit score is preserved.
 
 ### Enrich
 Visits each job URL and extracts the full description. 3-tier cascade: JSON-LD structured data, then CSS selector patterns, then AI-powered extraction for unknown layouts.
 
 ### Score
-AI scores every job 1-10 against your profile. 9-10 = strong match, 7-8 = good, 5-6 = moderate, 1-4 = skip. Only jobs above your threshold proceed to tailoring.
+AI scores shortlisted jobs 1-10 against your profile. The shortlist uses the configurable deterministic discovery rank and always includes watchlist jobs, preventing broad discovery from generating uncontrolled paid LLM usage. 9-10 = strong match, 7-8 = good, 5-6 = moderate, 1-4 = skip. Only jobs above your threshold proceed to tailoring.
 
 ### Tailor
 Generates a custom resume per job: reorders experience, emphasizes relevant skills, incorporates keywords from the job description. Your `resume_facts` (companies, projects, metrics) are preserved exactly. The AI reorganizes but never fabricates.

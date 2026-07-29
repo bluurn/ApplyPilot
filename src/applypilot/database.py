@@ -103,6 +103,7 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             discovery_signals     TEXT,
             ranked_at             TEXT,
             strategy              TEXT,
+            source_id             TEXT,
             discovered_at         TEXT,
 
             -- Enrichment stage (detail_scraper)
@@ -164,6 +165,7 @@ _ALL_COLUMNS: dict[str, str] = {
     "discovery_signals": "TEXT",
     "ranked_at": "TEXT",
     "strategy": "TEXT",
+    "source_id": "TEXT",
     "discovered_at": "TEXT",
     # Enrichment
     "full_description": "TEXT",

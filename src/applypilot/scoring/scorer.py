@@ -5,14 +5,14 @@ job description. All personal data is loaded at runtime from the user's
 profile and resume file.
 """
 
-import json
 import logging
 import re
 import time
 from datetime import datetime, timezone
 
-from applypilot.config import RESUME_PATH, load_profile
-from applypilot.database import get_connection, get_jobs_by_stage
+from applypilot import config
+from applypilot.config import RESUME_PATH
+from applypilot.database import get_connection
 from applypilot.llm import get_client
 
 log = logging.getLogger(__name__)
@@ -120,7 +120,34 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
             query += f" LIMIT {limit}"
         jobs = conn.execute(query).fetchall()
     else:
-        jobs = get_jobs_by_stage(conn=conn, stage="pending_score", limit=limit)
+        search_cfg = config.load_search_config()
+        scoring_cfg = search_cfg.get("scoring", {})
+        min_discovery_score = float(scoring_cfg.get("min_discovery_score", 5))
+        shortlist_limit = limit or int(scoring_cfg.get("shortlist_limit", 100))
+        jobs = conn.execute(
+            """
+            SELECT * FROM jobs
+            WHERE full_description IS NOT NULL
+              AND fit_score IS NULL
+              AND (is_watchlist = 1 OR COALESCE(discovery_score, 0) >= ?)
+            ORDER BY is_watchlist DESC, discovery_score DESC, discovered_at DESC
+            LIMIT ?
+            """,
+            (min_discovery_score, shortlist_limit),
+        ).fetchall()
+        pending_total = conn.execute(
+            """
+            SELECT COUNT(*) FROM jobs
+            WHERE full_description IS NOT NULL AND fit_score IS NULL
+            """
+        ).fetchone()[0]
+        if pending_total > len(jobs):
+            log.info(
+                "Shortlisted %d/%d pending jobs (rank >= %.1f or watchlist).",
+                len(jobs),
+                pending_total,
+                min_discovery_score,
+            )
 
     if not jobs:
         log.info("No unscored jobs with descriptions found.")

@@ -29,6 +29,20 @@ ranking:
     salary: 1
     watchlist: 2
 
+# Limit paid LLM scoring to the strongest deterministic candidates. Watchlist
+# jobs always remain eligible regardless of score.
+scoring:
+  min_discovery_score: 5
+  shortlist_limit: 100
+
+# Expensive broad sources should use only precise queries. Workday accepts an
+# explicit deduplicated query list; Smart Extract defaults to tier 1.
+workday_queries:
+  - "backend engineer"
+  - "python developer"
+  - "full stack engineer"
+smart_extract_max_tier: 1
+
 # Search queries -- each has a query string and priority tier.
 # Tier 1: High-priority exact matches (searched first, highest precision)
 # Tier 2: Strong matches, broader scope

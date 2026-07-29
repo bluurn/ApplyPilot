@@ -55,10 +55,12 @@ sites:
   - name: "Talent.com"
     url: "https://www.talent.com/jobs?k={query_encoded}&l={location_encoded}"
     type: search
+    enabled: false  # CAPTCHA-heavy, US-biased results, and high LLM cost
 
   - name: "SimplyHired"
     url: "https://www.simplyhired.com/search?q={query_encoded}&l={location_encoded}"
     type: search
+    enabled: false  # frequently stalls browser collection
 
   - name: "PowerToFly"
     url: "https://powertofly.com/jobs/?keywords={query_encoded}&remote=true"

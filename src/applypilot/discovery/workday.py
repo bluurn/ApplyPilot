@@ -381,20 +381,25 @@ def store_results(conn: sqlite3.Connection, jobs: list[dict], employers: dict) -
         site = job.get("employer_name", "Corporate")
         is_watchlist, watchlist_name = watchlist_fields(site, watchlist)
         strategy = "workday_api"
+        source_id = f"{job.get('employer_key', '')}:{job.get('external_path', '')}"
 
         try:
             conn.execute(
                 "INSERT INTO jobs (url, title, salary, description, location, site, company, "
-                "is_watchlist, watchlist_name, strategy, "
+                "is_watchlist, watchlist_name, strategy, source_id, "
                 "discovered_at, full_description, application_url, detail_scraped_at, detail_error) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (url, job.get("title"), None, short_desc, job.get("location"),
-                 site, site, is_watchlist, watchlist_name, strategy, now,
+                 site, site, is_watchlist, watchlist_name, strategy, source_id, now,
                  full_description, url, detail_scraped_at, detail_error),
             )
             new += 1
         except sqlite3.IntegrityError:
             existing += 1
+            conn.execute(
+                "UPDATE jobs SET source_id = COALESCE(source_id, ?) WHERE url = ?",
+                (source_id, url),
+            )
             update_existing_watchlist(
                 conn,
                 url,
@@ -415,6 +420,7 @@ def _process_one(
     accept_locs: list[str],
     reject_locs: list[str],
     exclude_titles: list[str],
+    seen_source_ids: set[str],
 ) -> dict:
     """Search one employer, fetch details, store results."""
     emp = employers[employer_key]
@@ -436,13 +442,30 @@ def _process_one(
         return {"employer": emp["name"], "query": search_text,
                 "found": 0, "new": 0, "existing": 0}
 
+    fresh_jobs = []
+    skipped_existing = 0
+    for job in jobs:
+        source_id = f"{employer_key}:{job.get('external_path', '')}"
+        if source_id in seen_source_ids:
+            skipped_existing += 1
+            continue
+        seen_source_ids.add(source_id)
+        fresh_jobs.append(job)
+
+    if skipped_existing:
+        log.info("%s: skipped details for %d known jobs", emp["name"], skipped_existing)
+    if not fresh_jobs:
+        return {"employer": emp["name"], "query": search_text,
+                "found": len(jobs), "new": 0, "existing": skipped_existing}
+
     try:
-        jobs = fetch_details(emp, jobs)
+        fresh_jobs = fetch_details(emp, fresh_jobs)
     except Exception as e:
         log.error("%s: ERROR fetching details for '%s': %s", emp["name"], search_text, e)
 
     conn = get_connection()
-    new, existing = store_results(conn, jobs, employers)
+    new, existing = store_results(conn, fresh_jobs, employers)
+    existing += skipped_existing
     log.info("%s: %d new, %d already in DB", emp["name"], new, existing)
 
     return {"employer": emp["name"], "query": search_text,
@@ -461,6 +484,7 @@ def scrape_employers(
     reject_locs: list[str] | None = None,
     exclude_titles: list[str] | None = None,
     workers: int = 1,
+    seen_source_ids: set[str] | None = None,
 ) -> dict:
     """Run full scrape: search -> filter -> detail -> store.
 
@@ -476,6 +500,8 @@ def scrape_employers(
         reject_locs = []
     if exclude_titles is None:
         exclude_titles = []
+    if seen_source_ids is None:
+        seen_source_ids = set()
 
     # Ensure DB schema
     init_db()
@@ -496,6 +522,7 @@ def scrape_employers(
                 pool.submit(
                     _process_one, key, employers, search_text,
                     location_filter, accept_locs, reject_locs, exclude_titles,
+                    seen_source_ids,
                 ): key
                 for key in valid_keys
             }
@@ -519,6 +546,7 @@ def scrape_employers(
             result = _process_one(
                 key, employers, search_text,
                 location_filter, accept_locs, reject_locs, exclude_titles,
+                seen_source_ids,
             )
             completed += 1
             total_new += result["new"]
@@ -568,9 +596,13 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
     accept_locs, reject_locs = _load_location_filter(search_cfg)
     exclude_titles = search_cfg.get("exclude_titles", [])
 
-    # Default to tier 1-2 queries for workday scraping
-    max_tier = search_cfg.get("workday_max_tier", 2)
-    queries = [q["query"] for q in queries_cfg if q.get("tier", 99) <= max_tier]
+    configured_queries = search_cfg.get("workday_queries")
+    if configured_queries:
+        queries = list(dict.fromkeys(configured_queries))
+    else:
+        # Default to tier 1-2 queries for Workday scraping.
+        max_tier = search_cfg.get("workday_max_tier", 2)
+        queries = [q["query"] for q in queries_cfg if q.get("tier", 99) <= max_tier]
 
     if not queries:
         # Fallback: use all queries
@@ -591,6 +623,13 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
     grand_new = 0
     grand_existing = 0
     grand_found = 0
+    conn = get_connection()
+    seen_source_ids = {
+        row[0]
+        for row in conn.execute(
+            "SELECT source_id FROM jobs WHERE source_id IS NOT NULL"
+        ).fetchall()
+    }
 
     for i, query in enumerate(queries, 1):
         log.info("Query %d/%d: \"%s\"", i, len(queries), query)
@@ -602,6 +641,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
             reject_locs=reject_locs,
             exclude_titles=exclude_titles,
             workers=workers,
+            seen_source_ids=seen_source_ids,
         )
         grand_new += result["new"]
         grand_existing += result["existing"]
