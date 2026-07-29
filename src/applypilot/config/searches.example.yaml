@@ -16,6 +16,19 @@ watchlist:
   - "Elastic"
   - "Datadog"
 
+# Deterministic ranking weights. Closely related technical and geography
+# signals use their strongest contribution rather than stacking.
+ranking:
+  weights:
+    python: 3
+    backend: 3
+    germany: 3
+    europe: 2
+    remote: 2
+    relocation: 1.5
+    salary: 1
+    watchlist: 2
+
 # Search queries -- each has a query string and priority tier.
 # Tier 1: High-priority exact matches (searched first, highest precision)
 # Tier 2: Strong matches, broader scope

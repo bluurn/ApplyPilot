@@ -141,6 +141,13 @@ def _run_discover(workers: int = 1) -> dict:
         console.print(f"  [red]Smart extract error:[/red] {e}")
         stats["smartextract"] = f"error: {e}"
 
+    try:
+        from applypilot.scoring.ranking import run_discovery_ranking
+        stats["ranking"] = run_discovery_ranking()
+    except Exception as e:
+        log.error("Deterministic discovery ranking failed: %s", e)
+        stats["ranking"] = f"error: {e}"
+
     return stats
 
 
@@ -149,6 +156,8 @@ def _run_enrich(workers: int = 1) -> dict:
     try:
         from applypilot.enrichment.detail import run_enrichment
         run_enrichment(workers=workers)
+        from applypilot.scoring.ranking import run_discovery_ranking
+        run_discovery_ranking()
         return {"status": "ok"}
     except Exception as e:
         log.error("Enrichment failed: %s", e)

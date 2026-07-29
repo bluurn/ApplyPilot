@@ -304,6 +304,7 @@ def status() -> None:
 
     summary.add_row("Total jobs discovered", str(stats["total"]))
     summary.add_row("Watchlist jobs", str(stats["watchlist"]))
+    summary.add_row("Deterministically ranked", str(stats["ranked"]))
     summary.add_row("With full description", str(stats["with_description"]))
     summary.add_row("Pending enrichment", str(stats["pending_detail"]))
     summary.add_row("Enrichment errors", str(stats["detail_errors"]))
@@ -367,6 +368,69 @@ def status() -> None:
 
         console.print(site_table)
 
+    console.print()
+
+
+@app.command()
+def today(
+    days: int = typer.Option(1, "--days", min=1, help="Review this many recent days."),
+    limit: int = typer.Option(20, "--limit", min=1, help="Maximum jobs per section."),
+) -> None:
+    """Show the daily brief: new jobs, best matches, and watchlist coverage."""
+    _bootstrap()
+
+    from applypilot.today import build_today_report
+
+    report = build_today_report(days=days, limit=limit)
+    console.print(
+        f"\n[bold]ApplyPilot Today[/bold] [dim](last {days} day"
+        f"{'s' if days != 1 else ''})[/dim]\n"
+    )
+
+    def jobs_table(title: str, jobs: list[dict]) -> None:
+        table = Table(title=title, show_header=True, header_style="bold cyan")
+        table.add_column("Company")
+        table.add_column("Role")
+        table.add_column("Location")
+        table.add_column("Rank", justify="right")
+        table.add_column("LLM", justify="right")
+        table.add_column("Why")
+        for job in jobs:
+            company = job.get("company") or job.get("site") or "Unknown"
+            if job.get("is_watchlist"):
+                company = f"★ {company}"
+            table.add_row(
+                company,
+                job.get("title") or "Untitled",
+                job.get("location") or "",
+                f"{job.get('discovery_score') or 0:g}",
+                str(job.get("fit_score") or "—"),
+                job.get("discovery_explanation") or "",
+            )
+        if jobs:
+            console.print(table)
+        else:
+            console.print(f"[dim]{title}: none[/dim]")
+
+    jobs_table("Newly Discovered", report["new_jobs"])
+    jobs_table("Best Matches", report["best_matches"])
+    jobs_table("Watchlist Results", report["watchlist_jobs"])
+
+    if report["new_companies"]:
+        company_table = Table(title="New Companies", show_header=True)
+        company_table.add_column("Company")
+        company_table.add_column("Jobs", justify="right")
+        for company in report["new_companies"]:
+            company_table.add_row(company["company"], str(company["jobs"]))
+        console.print(company_table)
+
+    jobs_table("Applied Recently", report["applied"])
+
+    if report["watchlist"]["missing"]:
+        console.print(
+            "[yellow]Missing watchlist sources:[/yellow] "
+            + ", ".join(report["watchlist"]["missing"])
+        )
     console.print()
 
 

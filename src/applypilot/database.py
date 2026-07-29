@@ -99,6 +99,9 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             company               TEXT,
             is_watchlist          INTEGER DEFAULT 0,
             watchlist_name        TEXT,
+            discovery_score       REAL,
+            discovery_signals     TEXT,
+            ranked_at             TEXT,
             strategy              TEXT,
             discovered_at         TEXT,
 
@@ -157,6 +160,9 @@ _ALL_COLUMNS: dict[str, str] = {
     "company": "TEXT",
     "is_watchlist": "INTEGER DEFAULT 0",
     "watchlist_name": "TEXT",
+    "discovery_score": "REAL",
+    "discovery_signals": "TEXT",
+    "ranked_at": "TEXT",
     "strategy": "TEXT",
     "discovered_at": "TEXT",
     # Enrichment
@@ -249,6 +255,9 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
     stats["total"] = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     stats["watchlist"] = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE is_watchlist = 1"
+    ).fetchone()[0]
+    stats["ranked"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE discovery_score IS NOT NULL"
     ).fetchone()[0]
 
     # By site breakdown
@@ -439,7 +448,8 @@ def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
 
     query = (
         f"SELECT * FROM jobs WHERE {where} "
-        "ORDER BY is_watchlist DESC, fit_score DESC NULLS LAST, discovered_at DESC"
+        "ORDER BY is_watchlist DESC, discovery_score DESC NULLS LAST, "
+        "fit_score DESC NULLS LAST, discovered_at DESC"
     )
     if limit > 0:
         query += " LIMIT ?"

@@ -10,6 +10,7 @@ Generates a self-contained HTML dashboard with:
 
 from __future__ import annotations
 
+import json
 import webbrowser
 from html import escape
 from pathlib import Path
@@ -18,6 +19,7 @@ from rich.console import Console
 
 from applypilot.config import APP_DIR
 from applypilot.database import get_connection
+from applypilot.scoring.ranking import explain_signals
 
 console = Console()
 
@@ -79,10 +81,11 @@ def generate_dashboard(output_path: str | None = None) -> str:
         SELECT url, title, salary, description, location, site, company,
                is_watchlist, watchlist_name, strategy,
                full_description, application_url, detail_error,
-               fit_score, score_reasoning
+               fit_score, score_reasoning, discovery_score, discovery_signals
         FROM jobs
-        WHERE fit_score >= 5 OR is_watchlist = 1
-        ORDER BY is_watchlist DESC, fit_score DESC, site, title
+        WHERE fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0
+        ORDER BY is_watchlist DESC, discovery_score DESC,
+                 fit_score DESC, site, title
     """).fetchall()
 
     # Color map per site
@@ -162,6 +165,11 @@ def generate_dashboard(output_path: str | None = None) -> str:
         reasoning_lines = reasoning_raw.split("\n")
         keywords = reasoning_lines[0][:120] if reasoning_lines else ""
         reasoning = reasoning_lines[1][:200] if len(reasoning_lines) > 1 else ""
+        try:
+            discovery_signals = json.loads(j["discovery_signals"] or "{}")
+        except json.JSONDecodeError:
+            discovery_signals = {}
+        discovery_reasoning = explain_signals(discovery_signals)
 
         desc_preview = escape(j["full_description"] or "")[:300]
         full_desc_html = escape(j["full_description"] or "").replace("\n", "<br>")
@@ -181,6 +189,11 @@ def generate_dashboard(output_path: str | None = None) -> str:
                 f'{escape(j["watchlist_name"] or j["company"] or "Watchlist")}'
                 "</span>"
             )
+        if j["discovery_score"] is not None:
+            meta_parts.append(
+                '<span class="meta-tag rank">Rank '
+                f'{j["discovery_score"]:g}</span>'
+            )
         meta_html = " ".join(meta_parts)
 
         apply_html = ""
@@ -196,6 +209,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
           <div class="meta-row">{meta_html}</div>
           {f'<div class="keywords-row">{escape(keywords)}</div>' if keywords else ''}
           {f'<div class="reasoning-row">{escape(reasoning)}</div>' if reasoning else ''}
+          <div class="ranking-row">{escape(discovery_reasoning)}</div>
           <p class="desc-preview">{desc_preview}...</p>
           {"<details class='full-desc-details'><summary class='expand-btn'>Full Description (" + f'{desc_len:,}' + " chars)</summary><div class='full-desc'>" + full_desc_html + "</div></details>" if j["full_description"] else ""}
           <div class="card-footer">{apply_html}</div>
@@ -282,9 +296,11 @@ def generate_dashboard(output_path: str | None = None) -> str:
   .meta-tag.salary {{ background: #064e3b; color: #6ee7b7; }}
   .meta-tag.location {{ background: #1e3a5f; color: #93c5fd; }}
   .meta-tag.watchlist {{ background: #713f12; color: #fde68a; }}
+  .meta-tag.rank {{ background: #3b0764; color: #d8b4fe; }}
 
   .keywords-row {{ font-size: 0.75rem; color: #10b981; margin-bottom: 0.3rem; line-height: 1.4; }}
   .reasoning-row {{ font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-style: italic; line-height: 1.4; }}
+  .ranking-row {{ font-size: 0.75rem; color: #c4b5fd; margin-bottom: 0.5rem; line-height: 1.4; }}
 
   .desc-preview {{ font-size: 0.8rem; color: #64748b; line-height: 1.5; margin-bottom: 0.75rem; max-height: 3.6em; overflow: hidden; }}
 

@@ -137,24 +137,26 @@ The fork already includes:
 - exact normalized company watchlist matching without fuzzy scoring
 - watchlist-first ATS ordering and persistent company/watchlist job fields
 - watchlist coverage in status output and priority cards in the dashboard
+- transparent configurable discovery ranking with persisted signal contributions
+- deterministic ranking before and after enrichment without replacing LLM fit scores
+- daily review workflow via `applypilot today`
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Add transparent, configurable ranking signals for discovery quality.
+Add first-class discovery coverage for the remaining priority companies,
+starting with Canonical and Red Hat.
 
 Requirements:
 
-1. Store individual signal values rather than only an opaque final score.
-2. Include Python/backend fit, Germany/Europe relevance, remote eligibility,
-   relocation support, salary quality, and watchlist membership.
-3. Keep weights configurable in search configuration.
-4. Avoid double-counting closely related signals.
-5. Explain positive and negative contributions in status/dashboard output.
-6. Preserve the existing LLM fit score while adding deterministic discovery
-   ranking alongside it.
-7. Add focused signal, weighting, persistence, and ordering tests.
+1. Identify stable public job feeds or APIs for Canonical and Red Hat.
+2. Integrate them through the appropriate registry or an isolated first-class
+   source rather than fragile page scraping where possible.
+3. Preserve shared Europe/remote eligibility filtering and ranking.
+4. Report source failures without stopping other discovery.
+5. Make watchlist coverage accurately report both companies as configured.
+6. Add focused parsing, filtering, failure-isolation, and persistence tests.
 
 ## Discovery Roadmap
 
@@ -218,6 +220,9 @@ It should summarize:
 - already applied jobs
 - newly opened roles
 - watchlist results
+
+Implemented by `applypilot today`, including configurable recency and result
+limits plus watchlist source coverage.
 
 ## Engineering Guidelines
 
