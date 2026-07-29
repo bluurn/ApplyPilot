@@ -2,3 +2,5 @@ profiles:
   eu:
     employers:
       - eu
+    greenhouse:
+      - eu

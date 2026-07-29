@@ -1,0 +1,38 @@
+# Europe-relevant Greenhouse boards verified against the public Job Board API.
+
+boards:
+  gitlab:
+    name: "GitLab"
+    token: "gitlab"
+
+  grafana_labs:
+    name: "Grafana Labs"
+    token: "grafanalabs"
+
+  cloudflare:
+    name: "Cloudflare"
+    token: "cloudflare"
+
+  elastic:
+    name: "Elastic"
+    token: "elastic"
+
+  datadog:
+    name: "Datadog"
+    token: "datadog"
+
+  contentful:
+    name: "Contentful"
+    token: "contentful"
+
+  sumup:
+    name: "SumUp"
+    token: "sumup"
+
+  n26:
+    name: "N26"
+    token: "n26"
+
+  celonis:
+    name: "Celonis"
+    token: "celonis"

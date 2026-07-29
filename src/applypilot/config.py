@@ -146,6 +146,16 @@ def load_employers_config() -> dict:
     )
 
 
+def load_greenhouse_config() -> dict:
+    """Load profile-aware Greenhouse board configuration with personal overrides."""
+    return load_registry(
+        CONFIG_DIR,
+        "greenhouse",
+        load_search_config(),
+        USER_CONFIG_DIR,
+    )
+
+
 def is_manual_ats(url: str | None) -> bool:
     """Check if a URL routes through an ATS that requires manual application."""
     if not url:

@@ -88,8 +88,11 @@ Package registries may use:
 src/applypilot/config/
 ├── profiles.yaml
 ├── employers.yaml
+├── greenhouse.yaml
 ├── sites.yaml
 ├── employers/
+│   └── <fragment>.yaml
+├── greenhouse/
 │   └── <fragment>.yaml
 └── sites/
     └── <fragment>.yaml
@@ -116,29 +119,33 @@ The fork already includes:
 - Workday registry health checking via `applypilot workday-health`
 - 44 live Workday portals in the base plus Europe profile registries
 - isolated JobSpy board subprocesses with hard timeouts and partial-result retention
+- first-class Greenhouse public API discovery with per-employer failure isolation
+- 9 verified Europe-relevant Greenhouse boards in the Europe profile
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Add Greenhouse as the next first-class ATS discovery source.
+Enforce stronger Europe and remote eligibility filtering across discovery sources.
 
 Requirements:
 
-1. Use Greenhouse's public job-board API without a browser or LLM.
-2. Load employer board tokens from the runtime registry rather than hardcoding
-   them in discovery code.
-3. Isolate failures per employer so one broken board does not stop discovery.
-4. Normalize jobs into the existing database fields and deduplicate by URL.
-5. Apply the explicit Europe and remote location filters.
-6. Add focused API, normalization, and failure-isolation tests.
+1. Distinguish Europe-compatible remote roles from country-restricted remote
+   roles instead of accepting every title containing "remote".
+2. Preserve Germany, EU/Europe, and worthwhile relocation roles.
+3. Reject clearly incompatible geography before enrichment and scoring.
+4. Share the location policy across JobSpy, Workday, Greenhouse, and smart
+   extraction where their source data permits.
+5. Record or log an inspectable reason when a job is rejected.
+6. Add focused tests for ambiguous, multi-location, remote-restricted, and
+   relocation cases.
 
 ## Discovery Roadmap
 
 ### Employer and ATS coverage
 
 - Expand Workday employers to roughly 100–300 useful companies.
-- Add Greenhouse as a first-class discovery source.
+- Expand Greenhouse coverage beyond the initial 9 verified boards.
 - Add Lever.
 - Add Ashby.
 - Improve Europe-relevant JobSpy coverage.
