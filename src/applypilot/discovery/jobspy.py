@@ -227,7 +227,10 @@ def _run_one_search(
         if proxy_config:
             kwargs["proxies"] = [proxy_config["jobspy"]]
         if "linkedin" in other_sites:
-            kwargs["linkedin_fetch_description"] = True
+            kwargs["linkedin_fetch_description"] = defaults.get(
+                "linkedin_fetch_description",
+                False,
+            )
         try:
             df = _scrape_with_retry(kwargs, max_retries=max_retries)
             all_dfs.append(df)

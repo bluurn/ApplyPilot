@@ -29,6 +29,7 @@
           playwright-driver
           pkg-config
           gcc
+          zlib
 
           stdenv.cc.cc.lib
           glib
@@ -63,6 +64,7 @@
           export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
             pkgs.stdenv.cc.cc.lib
+            pkgs.zlib
             pkgs.glib
             pkgs.nss
             pkgs.nspr
