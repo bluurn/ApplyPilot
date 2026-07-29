@@ -3,8 +3,8 @@
 Scrapes Workday-powered career sites (TD, RBC, NVIDIA, Salesforce, etc.)
 via the undocumented CXS JSON API. Zero LLM, zero browser -- pure HTTP.
 
-Employer registry is loaded from config/employers.yaml instead of being
-hardcoded. Supports sequential search + detail fetching with proxy.
+Employer registry is loaded through the profile-aware runtime configuration.
+Supports sequential search + detail fetching with proxy.
 """
 
 import json
@@ -17,25 +17,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 
-import yaml
-
 from applypilot import config
-from applypilot.config import CONFIG_DIR
 from applypilot.database import get_connection, init_db
 
 log = logging.getLogger(__name__)
 
 
-# -- Employer registry from YAML --------------------------------------------
+# -- Employer registry ------------------------------------------------------
 
 def load_employers() -> dict:
-    """Load Workday employer registry from config/employers.yaml."""
-    path = CONFIG_DIR / "employers.yaml"
-    if not path.exists():
-        log.warning("employers.yaml not found at %s", path)
-        return {}
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return data.get("employers", {})
+    """Load the Workday employer mapping from the runtime registry."""
+    return config.load_employers_config().get("employers", {})
 
 
 # -- Location filtering from search config -----------------------------------
@@ -472,12 +464,12 @@ def scrape_employers(
 def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> dict:
     """Main entry point for Workday-based corporate job discovery.
 
-    Loads employer registry from config/employers.yaml (or uses the provided
-    dict), then loads search queries from the user's search config to run
-    a full crawl across all employers.
+    Loads the profile-aware employer registry (or uses the provided dict),
+    then loads search queries from the user's search config to run a full
+    crawl across all employers.
 
     Args:
-        employers: Override the employer registry. If None, loads from YAML.
+        employers: Override the employer registry. If None, loads the runtime registry.
         workers: Number of parallel threads for employer scraping. Default 1 (sequential).
 
     Returns:
@@ -487,7 +479,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
         employers = load_employers()
 
     if not employers:
-        log.warning("No employers configured. Create config/employers.yaml.")
+        log.warning("No employers configured in the runtime registry.")
         return {"found": 0, "new": 0, "existing": 0, "queries": 0}
 
     search_cfg = config.load_search_config()
