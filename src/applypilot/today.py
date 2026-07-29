@@ -59,15 +59,38 @@ def build_today_report(
     new_jobs = _decorate(
         _rows(
             conn,
-            select + " WHERE datetime(discovered_at) >= datetime(?) " + order,
+            select
+            + """
+              WHERE datetime(discovered_at) >= datetime(?)
+                AND eligibility_allowed IS NOT 0
+                AND duplicate_of IS NULL
+            """
+            + order,
             (since_value, limit_value),
         )
     )
-    best_matches = _decorate(_rows(conn, select + order, (limit_value,)))
+    best_matches = _decorate(
+        _rows(
+            conn,
+            select
+            + """
+              WHERE eligibility_allowed IS NOT 0
+                AND duplicate_of IS NULL
+            """
+            + order,
+            (limit_value,),
+        )
+    )
     watchlist_jobs = _decorate(
         _rows(
             conn,
-            select + " WHERE is_watchlist = 1 " + order,
+            select
+            + """
+              WHERE is_watchlist = 1
+                AND eligibility_allowed IS NOT 0
+                AND duplicate_of IS NULL
+            """
+            + order,
             (limit_value,),
         )
     )

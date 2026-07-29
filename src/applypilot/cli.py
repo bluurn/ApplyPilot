@@ -305,6 +305,8 @@ def status() -> None:
     summary.add_row("Total jobs discovered", str(stats["total"]))
     summary.add_row("Watchlist jobs", str(stats["watchlist"]))
     summary.add_row("Deterministically ranked", str(stats["ranked"]))
+    summary.add_row("Ineligible after audit", str(stats["ineligible"]))
+    summary.add_row("Duplicate postings", str(stats["duplicates"]))
     summary.add_row("With full description", str(stats["with_description"]))
     summary.add_row("Pending enrichment", str(stats["pending_detail"]))
     summary.add_row("Enrichment errors", str(stats["detail_errors"]))

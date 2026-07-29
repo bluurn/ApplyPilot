@@ -35,6 +35,10 @@ scoring:
   min_discovery_score: 5
   shortlist_limit: 100
 
+# Bound fallback detail-extraction prompts for pages without structured data.
+enrichment:
+  llm_max_input_chars: 12000
+
 # Expensive broad sources should use only precise queries. Workday accepts an
 # explicit deduplicated query list; Smart Extract defaults to tier 1.
 workday_queries:

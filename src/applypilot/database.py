@@ -102,6 +102,10 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             discovery_score       REAL,
             discovery_signals     TEXT,
             ranked_at             TEXT,
+            eligibility_allowed   INTEGER,
+            eligibility_reason    TEXT,
+            eligibility_audited_at TEXT,
+            duplicate_of          TEXT,
             strategy              TEXT,
             source_id             TEXT,
             discovered_at         TEXT,
@@ -164,6 +168,10 @@ _ALL_COLUMNS: dict[str, str] = {
     "discovery_score": "REAL",
     "discovery_signals": "TEXT",
     "ranked_at": "TEXT",
+    "eligibility_allowed": "INTEGER",
+    "eligibility_reason": "TEXT",
+    "eligibility_audited_at": "TEXT",
+    "duplicate_of": "TEXT",
     "strategy": "TEXT",
     "source_id": "TEXT",
     "discovered_at": "TEXT",
@@ -260,6 +268,12 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
     ).fetchone()[0]
     stats["ranked"] = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE discovery_score IS NOT NULL"
+    ).fetchone()[0]
+    stats["ineligible"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE eligibility_allowed = 0"
+    ).fetchone()[0]
+    stats["duplicates"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE duplicate_of IS NOT NULL"
     ).fetchone()[0]
 
     # By site breakdown

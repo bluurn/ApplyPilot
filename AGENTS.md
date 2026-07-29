@@ -144,6 +144,8 @@ The fork already includes:
 - supported worldwide fallback for Europe-wide LinkedIn remote searches
 - Workday source identity deduplication before repeated detail fetches
 - deterministic paid-scoring shortlist with unconditional watchlist inclusion
+- persisted eligibility re-audit and semantic duplicate suppression before paid scoring
+- bounded fallback enrichment prompts for unstructured job pages
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 

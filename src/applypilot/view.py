@@ -83,7 +83,9 @@ def generate_dashboard(output_path: str | None = None) -> str:
                full_description, application_url, detail_error,
                fit_score, score_reasoning, discovery_score, discovery_signals
         FROM jobs
-        WHERE fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0
+        WHERE (fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0)
+          AND eligibility_allowed IS NOT 0
+          AND duplicate_of IS NULL
         ORDER BY is_watchlist DESC, discovery_score DESC,
                  fit_score DESC, site, title
     """).fetchall()

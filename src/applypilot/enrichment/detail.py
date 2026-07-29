@@ -23,8 +23,7 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 from applypilot import config
-from applypilot.config import DB_PATH
-from applypilot.database import get_connection, init_db, ensure_columns
+from applypilot.database import init_db
 from applypilot.llm import get_client
 
 log = logging.getLogger(__name__)
@@ -456,10 +455,14 @@ def extract_with_llm(page, url: str) -> dict:
     except Exception:
         pass
 
+    search_cfg = config.load_search_config()
+    max_input_chars = int(
+        search_cfg.get("enrichment", {}).get("llm_max_input_chars", 12000)
+    )
     prompt = DETAIL_EXTRACT_PROMPT.format(
         url=url,
         title=title,
-        content=content[:30000],
+        content=content[:max_input_chars],
     )
 
     try:

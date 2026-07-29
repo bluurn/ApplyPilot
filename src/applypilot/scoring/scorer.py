@@ -8,14 +8,115 @@ profile and resume file.
 import logging
 import re
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 
 from applypilot import config
 from applypilot.config import RESUME_PATH
 from applypilot.database import get_connection
+from applypilot.discovery.filters import evaluate_location
 from applypilot.llm import get_client
 
 log = logging.getLogger(__name__)
+
+
+def _normalized(value: str | None) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", (value or "").casefold()))
+
+
+def _has_explicit_geography(location: str | None) -> bool:
+    normalized = _normalized(location)
+    generic = {"", "remote", "worldwide", "anywhere", "distributed"}
+    return normalized not in generic
+
+
+def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
+    """Persist current eligibility and semantic duplicate decisions."""
+    accept = search_cfg.get("location_accept", [])
+    reject = [
+        *search_cfg.get("location_reject_non_remote", []),
+        *search_cfg.get("location_reject_remote", []),
+    ]
+    rows = [dict(row) for row in conn.execute("SELECT * FROM jobs").fetchall()]
+    now = datetime.now(timezone.utc).isoformat()
+    eligible = 0
+    rejected = 0
+
+    for job in rows:
+        decision = evaluate_location(
+            job.get("location"),
+            accept,
+            reject,
+            job.get("full_description") or job.get("description"),
+            explicit_geography=_has_explicit_geography(job.get("location")),
+        )
+        conn.execute(
+            """
+            UPDATE jobs
+            SET eligibility_allowed = ?, eligibility_reason = ?,
+                eligibility_audited_at = ?, duplicate_of = NULL
+            WHERE url = ?
+            """,
+            (int(decision.allowed), decision.reason, now, job["url"]),
+        )
+        if decision.allowed:
+            eligible += 1
+        else:
+            rejected += 1
+
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for job in rows:
+        groups[
+            (
+                _normalized(job.get("company") or job.get("site")),
+                _normalized(job.get("title")),
+            )
+        ].append(job)
+
+    duplicate_count = 0
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        ordered = sorted(
+            group,
+            key=lambda job: (
+                bool(job.get("is_watchlist")),
+                float(job.get("discovery_score") or 0),
+                bool(job.get("application_url")),
+            ),
+            reverse=True,
+        )
+        canonical: list[dict] = []
+        for job in ordered:
+            text = _normalized(
+                job.get("full_description") or job.get("description")
+            )[:6000]
+            duplicate_of = None
+            for candidate in canonical:
+                candidate_text = _normalized(
+                    candidate.get("full_description")
+                    or candidate.get("description")
+                )[:6000]
+                if text and candidate_text and SequenceMatcher(
+                    None, text, candidate_text
+                ).ratio() >= 0.9:
+                    duplicate_of = candidate["url"]
+                    break
+            if duplicate_of:
+                conn.execute(
+                    "UPDATE jobs SET duplicate_of = ? WHERE url = ?",
+                    (duplicate_of, job["url"]),
+                )
+                duplicate_count += 1
+            else:
+                canonical.append(job)
+    conn.commit()
+    return {
+        "eligible": eligible,
+        "rejected": rejected,
+        "duplicates": duplicate_count,
+    }
 
 
 # ── Scoring Prompt ────────────────────────────────────────────────────────
@@ -113,14 +214,26 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
     """
     resume_text = RESUME_PATH.read_text(encoding="utf-8")
     conn = get_connection()
+    search_cfg = config.load_search_config()
+    audit = audit_scoring_candidates(conn, search_cfg)
+    log.info(
+        "Eligibility audit: %d eligible, %d rejected, %d duplicates.",
+        audit["eligible"],
+        audit["rejected"],
+        audit["duplicates"],
+    )
 
     if rescore:
-        query = "SELECT * FROM jobs WHERE full_description IS NOT NULL"
+        query = """
+            SELECT * FROM jobs
+            WHERE full_description IS NOT NULL
+              AND eligibility_allowed = 1
+              AND duplicate_of IS NULL
+        """
         if limit > 0:
             query += f" LIMIT {limit}"
         jobs = conn.execute(query).fetchall()
     else:
-        search_cfg = config.load_search_config()
         scoring_cfg = search_cfg.get("scoring", {})
         min_discovery_score = float(scoring_cfg.get("min_discovery_score", 5))
         shortlist_limit = limit or int(scoring_cfg.get("shortlist_limit", 100))
@@ -129,6 +242,8 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
             SELECT * FROM jobs
             WHERE full_description IS NOT NULL
               AND fit_score IS NULL
+              AND eligibility_allowed = 1
+              AND duplicate_of IS NULL
               AND (is_watchlist = 1 OR COALESCE(discovery_score, 0) >= ?)
             ORDER BY is_watchlist DESC, discovery_score DESC, discovered_at DESC
             LIMIT ?
