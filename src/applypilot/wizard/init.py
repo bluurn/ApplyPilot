@@ -215,6 +215,8 @@ def _setup_searches() -> None:
         f"  distance: {distance}",
         "  hours_old: 72",
         "  results_per_site: 50",
+        "  source_timeout_seconds: 30",
+        "  source_max_retries: 1",
         "",
         "locations:",
         f'  - location: "{location}"',

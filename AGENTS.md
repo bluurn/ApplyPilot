@@ -115,6 +115,7 @@ The fork already includes:
 - tests for registry merging and runtime integration
 - Workday registry health checking via `applypilot workday-health`
 - 44 live Workday portals in the base plus Europe profile registries
+- isolated JobSpy board subprocesses with hard timeouts and partial-result retention
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 

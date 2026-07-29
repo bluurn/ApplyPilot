@@ -12,11 +12,10 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 
-from jobspy import scrape_jobs
-
 from applypilot import config
 from applypilot.database import get_connection, init_db
 from applypilot.discovery.filters import title_is_excluded
+from applypilot.subprocess_runner import run_in_subprocess
 
 log = logging.getLogger(__name__)
 
@@ -59,14 +58,41 @@ def parse_proxy(proxy_str: str) -> dict:
 
 # -- Retry wrapper -----------------------------------------------------------
 
-def _scrape_with_retry(kwargs: dict, max_retries: int = 2, backoff: float = 5.0):
-    """Call scrape_jobs with retry on transient failures."""
+def _jobspy_scrape(kwargs: dict):
+    """Import and invoke the optional JobSpy adapter inside a worker process."""
+    from jobspy import scrape_jobs
+
+    return scrape_jobs(**kwargs)
+
+
+def _scrape_with_retry(
+    kwargs: dict,
+    max_retries: int = 2,
+    backoff: float = 5.0,
+    timeout_seconds: float = 45,
+):
+    """Call JobSpy in a killable subprocess, retrying transient failures."""
     for attempt in range(max_retries + 1):
         try:
-            return scrape_jobs(**kwargs)
+            return run_in_subprocess(
+                _jobspy_scrape,
+                kwargs,
+                timeout_seconds=timeout_seconds,
+            )
         except Exception as e:
             err = str(e).lower()
-            transient = any(k in err for k in ("timeout", "429", "proxy", "connection", "reset", "refused"))
+            transient = any(
+                key in err
+                for key in (
+                    "timeout",
+                    "deadline",
+                    "429",
+                    "proxy",
+                    "connection",
+                    "reset",
+                    "refused",
+                )
+            )
             if transient and attempt < max_retries:
                 wait = backoff * (attempt + 1)
                 log.warning("Retry %d/%d in %.0fs: %s", attempt + 1, max_retries, wait, e)
@@ -184,6 +210,61 @@ def store_jobspy_results(conn: sqlite3.Connection, df, source_label: str) -> tup
 
 # -- Single search execution -------------------------------------------------
 
+def _scrape_sources(
+    search: dict,
+    sites: list[str],
+    results_per_site: int,
+    hours_old: int,
+    proxy_config: dict | None,
+    defaults: dict,
+    max_retries: int,
+    glassdoor_map: dict,
+    label: str,
+) -> tuple[list, int]:
+    """Scrape boards independently and retain every successful result."""
+    gd_location = glassdoor_map.get(
+        search["location"],
+        search["location"].split(",")[0],
+    )
+    all_dfs = []
+    source_errors = 0
+    source_timeout = defaults.get("source_timeout_seconds", 45)
+
+    for site in sites:
+        kwargs = {
+            "site_name": [site],
+            "search_term": search["query"],
+            "location": gd_location if site == "glassdoor" else search["location"],
+            "results_wanted": results_per_site,
+            "hours_old": hours_old,
+            "description_format": "markdown",
+            "country_indeed": defaults.get("country_indeed", "usa"),
+            "verbose": 0,
+        }
+        if search.get("remote"):
+            kwargs["is_remote"] = True
+        if proxy_config:
+            kwargs["proxies"] = [proxy_config["jobspy"]]
+        if site == "linkedin":
+            kwargs["linkedin_fetch_description"] = defaults.get(
+                "linkedin_fetch_description",
+                False,
+            )
+        try:
+            all_dfs.append(
+                _scrape_with_retry(
+                    kwargs,
+                    max_retries=max_retries,
+                    timeout_seconds=source_timeout,
+                )
+            )
+        except Exception as exc:
+            source_errors += 1
+            log.error("[%s] (%s): %s", label, site, exc)
+
+    return all_dfs, source_errors
+
+
 def _run_one_search(
     search: dict,
     sites: list[str],
@@ -203,64 +284,28 @@ def _run_one_search(
     if "tier" in s:
         label += f" [tier {s['tier']}]"
 
-    # Split sites: Glassdoor needs simplified location, others use original
-    gd_location = glassdoor_map.get(s["location"], s["location"].split(",")[0])
-    has_glassdoor = "glassdoor" in sites
-    other_sites = [si for si in sites if si != "glassdoor"]
-
-    all_dfs = []
-
-    # Run non-Glassdoor sites with original location
-    if other_sites:
-        kwargs = {
-            "site_name": other_sites,
-            "search_term": s["query"],
-            "location": s["location"],
-            "results_wanted": results_per_site,
-            "hours_old": hours_old,
-            "description_format": "markdown",
-            "country_indeed": defaults.get("country_indeed", "usa"),
-            "verbose": 0,
-        }
-        if s.get("remote"):
-            kwargs["is_remote"] = True
-        if proxy_config:
-            kwargs["proxies"] = [proxy_config["jobspy"]]
-        if "linkedin" in other_sites:
-            kwargs["linkedin_fetch_description"] = defaults.get(
-                "linkedin_fetch_description",
-                False,
-            )
-        try:
-            df = _scrape_with_retry(kwargs, max_retries=max_retries)
-            all_dfs.append(df)
-        except Exception as e:
-            log.error("[%s] (non-gd): %s", label, e)
-
-    # Run Glassdoor separately with simplified location
-    if has_glassdoor:
-        gd_kwargs = {
-            "site_name": ["glassdoor"],
-            "search_term": s["query"],
-            "location": gd_location,
-            "results_wanted": results_per_site,
-            "hours_old": hours_old,
-            "description_format": "markdown",
-            "verbose": 0,
-        }
-        if s.get("remote"):
-            gd_kwargs["is_remote"] = True
-        if proxy_config:
-            gd_kwargs["proxies"] = [proxy_config["jobspy"]]
-        try:
-            gd_df = _scrape_with_retry(gd_kwargs, max_retries=max_retries)
-            all_dfs.append(gd_df)
-        except Exception as e:
-            log.error("[%s] (glassdoor): %s", label, e)
+    all_dfs, source_errors = _scrape_sources(
+        s,
+        sites,
+        results_per_site,
+        hours_old,
+        proxy_config,
+        defaults,
+        max_retries,
+        glassdoor_map,
+        label,
+    )
 
     if not all_dfs:
         log.error("[%s]: all sites failed", label)
-        return {"new": 0, "existing": 0, "errors": 1, "filtered": 0, "total": 0, "label": label}
+        return {
+            "new": 0,
+            "existing": 0,
+            "errors": max(1, source_errors),
+            "filtered": 0,
+            "total": 0,
+            "label": label,
+        }
 
     import pandas as pd
     import warnings
@@ -270,7 +315,14 @@ def _run_one_search(
 
     if len(df) == 0:
         log.info("[%s] 0 results", label)
-        return {"new": 0, "existing": 0, "errors": 0, "filtered": 0, "total": 0, "label": label}
+        return {
+            "new": 0,
+            "existing": 0,
+            "errors": source_errors,
+            "filtered": 0,
+            "total": 0,
+            "label": label,
+        }
 
     # Filter by configured title exclusions and location before storing
     before = len(df)
@@ -295,7 +347,14 @@ def _run_one_search(
         msg += f", {filtered} filtered (location)"
     log.info(msg)
 
-    return {"new": new, "existing": existing, "errors": 0, "filtered": filtered, "total": before, "label": label}
+    return {
+        "new": new,
+        "existing": existing,
+        "errors": source_errors,
+        "filtered": filtered,
+        "total": before,
+        "label": label,
+    }
 
 
 # -- Single query search -----------------------------------------------------
@@ -309,6 +368,7 @@ def search_jobs(
     hours_old: int = 72,
     proxy: str | None = None,
     country_indeed: str = "usa",
+    source_timeout_seconds: float = 45,
 ) -> dict:
     """Run a single job search via JobSpy and store results in DB."""
     if sites is None:
@@ -318,8 +378,7 @@ def search_jobs(
 
     log.info("Search: \"%s\" in %s | sites=%s | remote=%s", query, location, sites, remote_only)
 
-    kwargs = {
-        "site_name": sites,
+    base_kwargs = {
         "search_term": query,
         "location": location,
         "results_wanted": results_per_site,
@@ -330,19 +389,35 @@ def search_jobs(
     }
 
     if remote_only:
-        kwargs["is_remote"] = True
+        base_kwargs["is_remote"] = True
 
     if proxy_config:
-        kwargs["proxies"] = [proxy_config["jobspy"]]
+        base_kwargs["proxies"] = [proxy_config["jobspy"]]
 
-    if "linkedin" in sites:
-        kwargs["linkedin_fetch_description"] = True
+    all_dfs = []
+    errors = []
+    for site in sites:
+        kwargs = dict(base_kwargs, site_name=[site])
+        if site == "linkedin":
+            kwargs["linkedin_fetch_description"] = False
+        try:
+            all_dfs.append(
+                _scrape_with_retry(
+                    kwargs,
+                    timeout_seconds=source_timeout_seconds,
+                )
+            )
+        except Exception as exc:
+            errors.append(f"{site}: {exc}")
+            log.error("JobSpy source %s failed: %s", site, exc)
 
-    try:
-        df = scrape_jobs(**kwargs)
-    except Exception as e:
-        log.error("JobSpy search failed: %s", e)
-        return {"error": str(e), "total": 0, "new": 0, "existing": 0}
+    if not all_dfs:
+        detail = "; ".join(errors) or "no sources configured"
+        return {"error": detail, "total": 0, "new": 0, "existing": 0}
+
+    import pandas as pd
+
+    df = pd.concat(all_dfs, ignore_index=True) if len(all_dfs) > 1 else all_dfs[0]
 
     total = len(df)
     log.info("JobSpy returned %d results", total)
@@ -476,6 +551,7 @@ def run_discovery(cfg: dict | None = None) -> dict:
     sites = cfg.get("sites")
     results_per_site = cfg.get("defaults", {}).get("results_per_site", 100)
     hours_old = cfg.get("defaults", {}).get("hours_old", 72)
+    max_retries = cfg.get("defaults", {}).get("source_max_retries", 1)
     tiers = cfg.get("tiers")
     locations = cfg.get("location_labels")
 
@@ -487,4 +563,5 @@ def run_discovery(cfg: dict | None = None) -> dict:
         results_per_site=results_per_site,
         hours_old=hours_old,
         proxy=proxy,
+        max_retries=max_retries,
     )
