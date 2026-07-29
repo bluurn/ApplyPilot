@@ -5,6 +5,8 @@ import platform
 import shutil
 from pathlib import Path
 
+from applypilot.config_registry import load_registry
+
 # User data directory — all user-specific files live here
 APP_DIR = Path(os.environ.get("APPLYPILOT_DIR", Path.home() / ".applypilot"))
 
@@ -15,6 +17,7 @@ RESUME_PATH = APP_DIR / "resume.txt"
 RESUME_PDF_PATH = APP_DIR / "resume.pdf"
 SEARCH_CONFIG_PATH = APP_DIR / "searches.yaml"
 ENV_PATH = APP_DIR / ".env"
+USER_CONFIG_DIR = APP_DIR / "config"
 
 # Generated output
 TAILORED_DIR = APP_DIR / "tailored_resumes"
@@ -44,7 +47,7 @@ def get_chrome_path() -> str:
     if system == "Windows":
         candidates = [
             Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Google/Chrome/Application/chrome.exe",
-            Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Google/Chrome/Application/chrome.exe",
+            Path(os.environ.get("PROGRAMFILES(X86", r"C:\Program Files (x86)")) / "Google/Chrome/Application/chrome.exe",
             Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
         ]
     elif system == "Darwin":
@@ -87,13 +90,22 @@ def get_chrome_user_data() -> Path:
 
 def ensure_dirs():
     """Create all required directories."""
-    for d in [APP_DIR, TAILORED_DIR, COVER_LETTER_DIR, LOG_DIR, CHROME_WORKER_DIR, APPLY_WORKER_DIR]:
+    for d in [
+        APP_DIR,
+        USER_CONFIG_DIR,
+        TAILORED_DIR,
+        COVER_LETTER_DIR,
+        LOG_DIR,
+        CHROME_WORKER_DIR,
+        APPLY_WORKER_DIR,
+    ]:
         d.mkdir(parents=True, exist_ok=True)
 
 
 def load_profile() -> dict:
     """Load user profile from ~/.applypilot/profile.json."""
     import json
+
     if not PROFILE_PATH.exists():
         raise FileNotFoundError(
             f"Profile not found at {PROFILE_PATH}. Run `applypilot init` first."
@@ -104,22 +116,34 @@ def load_profile() -> dict:
 def load_search_config() -> dict:
     """Load search configuration from ~/.applypilot/searches.yaml."""
     import yaml
+
     if not SEARCH_CONFIG_PATH.exists():
         # Fall back to package-shipped example
         example = CONFIG_DIR / "searches.example.yaml"
         if example.exists():
-            return yaml.safe_load(example.read_text(encoding="utf-8"))
+            return yaml.safe_load(example.read_text(encoding="utf-8")) or {}
         return {}
-    return yaml.safe_load(SEARCH_CONFIG_PATH.read_text(encoding="utf-8"))
+    return yaml.safe_load(SEARCH_CONFIG_PATH.read_text(encoding="utf-8")) or {}
 
 
 def load_sites_config() -> dict:
-    """Load sites.yaml configuration (sites list, manual_ats, blocked, etc.)."""
-    import yaml
-    path = CONFIG_DIR / "sites.yaml"
-    if not path.exists():
-        return {}
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    """Load profile-aware site configuration with personal overrides."""
+    return load_registry(
+        CONFIG_DIR,
+        "sites",
+        load_search_config(),
+        USER_CONFIG_DIR,
+    )
+
+
+def load_employers_config() -> dict:
+    """Load profile-aware employer configuration with personal overrides."""
+    return load_registry(
+        CONFIG_DIR,
+        "employers",
+        load_search_config(),
+        USER_CONFIG_DIR,
+    )
 
 
 def is_manual_ats(url: str | None) -> bool:
@@ -133,7 +157,7 @@ def is_manual_ats(url: str | None) -> bool:
 
 
 def load_blocked_sites() -> tuple[set[str], list[str]]:
-    """Load blocked sites and URL patterns from sites.yaml.
+    """Load blocked sites and URL patterns from sites configuration.
 
     Returns:
         (blocked_site_names, blocked_url_patterns)
@@ -146,13 +170,13 @@ def load_blocked_sites() -> tuple[set[str], list[str]]:
 
 
 def load_blocked_sso() -> list[str]:
-    """Load blocked SSO domains from sites.yaml."""
+    """Load blocked SSO domains from sites configuration."""
     cfg = load_sites_config()
     return cfg.get("blocked_sso", [])
 
 
 def load_base_urls() -> dict[str, str | None]:
-    """Load site base URLs for URL resolution from sites.yaml."""
+    """Load site base URLs for URL resolution from sites configuration."""
     cfg = load_sites_config()
     return cfg.get("base_urls", {})
 
@@ -174,6 +198,7 @@ DEFAULTS = {
 def load_env():
     """Load environment variables from ~/.applypilot/.env if it exists."""
     from dotenv import load_dotenv
+
     if ENV_PATH.exists():
         load_dotenv(ENV_PATH)
     # Also try CWD .env as fallback
@@ -235,6 +260,7 @@ def check_tier(required: int, feature: str) -> None:
         return
 
     from rich.console import Console
+
     _console = Console(stderr=True)
 
     missing: list[str] = []
