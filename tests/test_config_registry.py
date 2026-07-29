@@ -52,3 +52,46 @@ def test_falls_back_to_legacy_when_profile_fragments_are_missing(tmp_path: Path)
     result = load_registry(tmp_path, "sites", {"search_profiles": ["eu"]})
 
     assert result["sites"][0]["name"] == "Legacy"
+
+
+def test_user_legacy_registry_overrides_package_data(tmp_path: Path) -> None:
+    package_dir = tmp_path / "package"
+    user_dir = tmp_path / "user"
+    _write(
+        package_dir / "employers.yaml",
+        {"employers": {"shared": {"name": "Package"}, "package": {"name": "Package only"}}},
+    )
+    _write(
+        user_dir / "employers.yaml",
+        {"employers": {"shared": {"name": "Personal"}, "personal": {"name": "Personal only"}}},
+    )
+
+    result = load_registry(package_dir, "employers", {}, user_dir)
+
+    assert result["employers"]["shared"]["name"] == "Personal"
+    assert result["employers"]["package"]["name"] == "Package only"
+    assert result["employers"]["personal"]["name"] == "Personal only"
+
+
+def test_user_profile_fragments_extend_selected_profile(tmp_path: Path) -> None:
+    package_dir = tmp_path / "package"
+    user_dir = tmp_path / "user"
+    manifest = {"profiles": {"eu": {"sites": ["global", "eu"]}}}
+    _write(package_dir / "profiles.yaml", manifest)
+    _write(user_dir / "profiles.yaml", manifest)
+    _write(package_dir / "sites" / "global.yaml", {"blocked_sso": ["package.example"]})
+    _write(package_dir / "sites" / "eu.yaml", {"blocked_sso": ["eu.example"]})
+    _write(user_dir / "sites" / "eu.yaml", {"blocked_sso": ["personal.example"]})
+
+    result = load_registry(
+        package_dir,
+        "sites",
+        {"search_profile": "eu"},
+        user_dir,
+    )
+
+    assert result["blocked_sso"] == [
+        "package.example",
+        "eu.example",
+        "personal.example",
+    ]
