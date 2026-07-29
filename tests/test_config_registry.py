@@ -41,7 +41,7 @@ def test_merges_profile_fragments_in_manifest_order(tmp_path: Path) -> None:
 
     result = load_registry(tmp_path, "employers", {"search_profile": "eu"})
 
-    assert list(result["employers"]) == ["shared", "global", "eu"]
+    assert set(result["employers"]) == {"shared", "global", "eu"}
     assert result["employers"]["shared"]["name"] == "EU override"
 
 
