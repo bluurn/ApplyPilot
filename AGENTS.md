@@ -88,10 +88,13 @@ Package registries may use:
 src/applypilot/config/
 ├── profiles.yaml
 ├── employers.yaml
+├── ashby.yaml
 ├── greenhouse.yaml
 ├── lever.yaml
 ├── sites.yaml
 ├── employers/
+│   └── <fragment>.yaml
+├── ashby/
 │   └── <fragment>.yaml
 ├── greenhouse/
 │   └── <fragment>.yaml
@@ -128,22 +131,25 @@ The fork already includes:
 - country-restricted remote filtering with relocation and sponsorship preservation
 - first-class Lever Postings API discovery with global/EU instance support
 - 15 verified Europe-relevant Lever sites in the Europe profile
+- first-class Ashby Job Postings API discovery with compensation data
+- 23 verified Europe-relevant Ashby boards in the Europe profile
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Add Ashby as the next first-class ATS discovery source.
+Add a configurable high-priority company watchlist across discovery sources.
 
 Requirements:
 
-1. Use Ashby's public job-board API without a browser or LLM.
-2. Load employer board identifiers from the runtime registry.
-3. Isolate failures per employer and retain partial results.
-4. Normalize jobs into the existing database fields and deduplicate by URL.
-5. Apply shared title and location eligibility decisions before storage.
-6. Seed and live-verify an initial Europe-relevant employer batch.
-7. Add focused API, normalization, filtering, and failure-isolation tests.
+1. Load watchlist company names from search configuration.
+2. Match normalized source/company names without opaque fuzzy scoring.
+3. Search watchlist employers before the remaining registry entries.
+4. Preserve watchlist status on discovered jobs in an inspectable database
+   field.
+5. Surface watchlist jobs prominently in status/dashboard output.
+6. Keep missing or temporarily broken watchlist companies visible in results.
+7. Add focused ordering, matching, persistence, and reporting tests.
 
 ## Discovery Roadmap
 
@@ -152,7 +158,7 @@ Requirements:
 - Expand Workday employers to roughly 100–300 useful companies.
 - Expand Greenhouse coverage beyond the initial 9 verified boards.
 - Expand Lever coverage beyond the initial 15 verified sites.
-- Add Ashby.
+- Expand Ashby coverage beyond the initial 23 verified boards.
 - Improve Europe-relevant JobSpy coverage.
 - Extend strong Europe and remote filtering as new source data permits.
 

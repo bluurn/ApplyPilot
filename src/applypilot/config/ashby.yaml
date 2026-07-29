@@ -1,0 +1,4 @@
+# Base Ashby job-board registry.
+# Profile-specific additions live under config/ashby/.
+
+boards: {}

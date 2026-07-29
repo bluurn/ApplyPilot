@@ -1,0 +1,94 @@
+# Europe-relevant Ashby boards verified against the public Job Postings API.
+
+boards:
+  openai:
+    name: "OpenAI"
+    board: "OpenAI"
+
+  notion:
+    name: "Notion"
+    board: "Notion"
+
+  linear:
+    name: "Linear"
+    board: "Linear"
+
+  posthog:
+    name: "PostHog"
+    board: "PostHog"
+
+  clickhouse:
+    name: "ClickHouse"
+    board: "ClickHouse"
+
+  supabase:
+    name: "Supabase"
+    board: "Supabase"
+
+  neon:
+    name: "Neon"
+    board: "Neon"
+
+  incident_io:
+    name: "incident.io"
+    board: "incident"
+
+  pleo:
+    name: "Pleo"
+    board: "Pleo"
+
+  synthesia:
+    name: "Synthesia"
+    board: "Synthesia"
+
+  elevenlabs:
+    name: "ElevenLabs"
+    board: "ElevenLabs"
+
+  n8n:
+    name: "n8n"
+    board: "n8n"
+
+  temporal:
+    name: "Temporal"
+    board: "Temporal"
+
+  astronomer:
+    name: "Astronomer"
+    board: "Astronomer"
+
+  lovable:
+    name: "Lovable"
+    board: "Lovable"
+
+  weaviate:
+    name: "Weaviate"
+    board: "Weaviate"
+
+  tacto:
+    name: "Tacto"
+    board: "Tacto"
+
+  lightdash:
+    name: "Lightdash"
+    board: "Lightdash"
+
+  attio:
+    name: "Attio"
+    board: "Attio"
+
+  pennylane:
+    name: "Pennylane"
+    board: "Pennylane"
+
+  dust:
+    name: "Dust"
+    board: "Dust"
+
+  poolside:
+    name: "Poolside"
+    board: "Poolside"
+
+  granola:
+    name: "Granola"
+    board: "Granola"

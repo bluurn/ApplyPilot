@@ -38,7 +38,7 @@ STAGE_META: dict[str, dict] = {
     "discover": {
         "desc": (
             "Job discovery "
-            "(JobSpy + Workday + Greenhouse + Lever + smart extract)"
+            "(JobSpy + Workday + Greenhouse + Lever + Ashby + smart extract)"
         )
     },
     "enrich":   {"desc": "Detail enrichment (full descriptions + apply URLs)"},
@@ -71,6 +71,7 @@ def _run_discover(workers: int = 1) -> dict:
         "workday": None,
         "greenhouse": None,
         "lever": None,
+        "ashby": None,
         "smartextract": None,
     }
 
@@ -117,6 +118,17 @@ def _run_discover(workers: int = 1) -> dict:
         log.error("Lever discovery failed: %s", e)
         console.print(f"  [red]Lever error:[/red] {e}")
         stats["lever"] = f"error: {e}"
+
+    # Ashby public job-board API
+    console.print("  [cyan]Ashby employer boards...[/cyan]")
+    try:
+        from applypilot.discovery.ashby import run_ashby_discovery
+        run_ashby_discovery(workers=workers)
+        stats["ashby"] = "ok"
+    except Exception as e:
+        log.error("Ashby discovery failed: %s", e)
+        console.print(f"  [red]Ashby error:[/red] {e}")
+        stats["ashby"] = f"error: {e}"
 
     # Smart extract
     console.print("  [cyan]Smart extract (AI-powered scraping)...[/cyan]")

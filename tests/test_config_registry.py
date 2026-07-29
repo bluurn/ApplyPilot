@@ -144,6 +144,27 @@ def test_packaged_eu_profile_includes_lever_sites() -> None:
     } <= result["sites"].keys()
 
 
+def test_packaged_eu_profile_includes_ashby_boards() -> None:
+    result = load_registry(
+        config.CONFIG_DIR,
+        "ashby",
+        {"search_profile": "eu"},
+    )
+
+    assert {
+        "openai",
+        "posthog",
+        "clickhouse",
+        "supabase",
+        "pleo",
+        "synthesia",
+        "elevenlabs",
+        "n8n",
+        "temporal",
+        "pennylane",
+    } <= result["boards"].keys()
+
+
 def test_falls_back_to_legacy_when_profile_fragments_are_missing(tmp_path: Path) -> None:
     _write(tmp_path / "sites.yaml", {"sites": [{"name": "Legacy", "url": "https://example.com"}]})
     _write(tmp_path / "profiles.yaml", {"profiles": {"eu": {"sites": ["global", "eu"]}}})

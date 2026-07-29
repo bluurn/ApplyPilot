@@ -166,6 +166,16 @@ def load_lever_config() -> dict:
     )
 
 
+def load_ashby_config() -> dict:
+    """Load profile-aware Ashby board configuration with personal overrides."""
+    return load_registry(
+        CONFIG_DIR,
+        "ashby",
+        load_search_config(),
+        USER_CONFIG_DIR,
+    )
+
+
 def is_manual_ats(url: str | None) -> bool:
     """Check if a URL routes through an ATS that requires manual application."""
     if not url:
