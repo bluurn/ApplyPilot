@@ -89,10 +89,13 @@ src/applypilot/config/
 ├── profiles.yaml
 ├── employers.yaml
 ├── greenhouse.yaml
+├── lever.yaml
 ├── sites.yaml
 ├── employers/
 │   └── <fragment>.yaml
 ├── greenhouse/
+│   └── <fragment>.yaml
+├── lever/
 │   └── <fragment>.yaml
 └── sites/
     └── <fragment>.yaml
@@ -123,17 +126,19 @@ The fork already includes:
 - 9 verified Europe-relevant Greenhouse boards in the Europe profile
 - shared inspectable location eligibility decisions across all discovery sources
 - country-restricted remote filtering with relocation and sponsorship preservation
+- first-class Lever Postings API discovery with global/EU instance support
+- 15 verified Europe-relevant Lever sites in the Europe profile
 
 The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
 
 ## Immediate Next Task
 
-Add Lever as the next first-class ATS discovery source.
+Add Ashby as the next first-class ATS discovery source.
 
 Requirements:
 
-1. Use Lever's public postings API without a browser or LLM.
-2. Load employer site identifiers from the runtime registry.
+1. Use Ashby's public job-board API without a browser or LLM.
+2. Load employer board identifiers from the runtime registry.
 3. Isolate failures per employer and retain partial results.
 4. Normalize jobs into the existing database fields and deduplicate by URL.
 5. Apply shared title and location eligibility decisions before storage.
@@ -146,7 +151,7 @@ Requirements:
 
 - Expand Workday employers to roughly 100–300 useful companies.
 - Expand Greenhouse coverage beyond the initial 9 verified boards.
-- Add Lever.
+- Expand Lever coverage beyond the initial 15 verified sites.
 - Add Ashby.
 - Improve Europe-relevant JobSpy coverage.
 - Extend strong Europe and remote filtering as new source data permits.

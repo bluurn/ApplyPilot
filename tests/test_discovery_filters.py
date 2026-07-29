@@ -62,6 +62,17 @@ def test_remote_role_with_unspecified_eligibility_is_preserved() -> None:
     assert decision == (True, "remote_eligibility_unspecified")
 
 
+def test_remote_role_with_known_unaccepted_geography_is_rejected() -> None:
+    decision = evaluate_location(
+        "Colombia (Remote)",
+        ["Germany", "Europe"],
+        ["US", "Canada"],
+        explicit_geography=True,
+    )
+
+    assert decision == (False, "remote_location_not_accepted")
+
+
 def test_multi_location_role_keeps_any_compatible_location() -> None:
     decision = evaluate_location(
         "Berlin, Germany; Austin, US",

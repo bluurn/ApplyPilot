@@ -1,0 +1,4 @@
+# Base Lever postings registry.
+# Profile-specific additions live under config/lever/.
+
+sites: {}

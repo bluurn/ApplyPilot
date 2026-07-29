@@ -36,7 +36,10 @@ STAGE_ORDER = ("discover", "enrich", "score", "tailor", "cover", "pdf")
 
 STAGE_META: dict[str, dict] = {
     "discover": {
-        "desc": "Job discovery (JobSpy + Workday + Greenhouse + smart extract)"
+        "desc": (
+            "Job discovery "
+            "(JobSpy + Workday + Greenhouse + Lever + smart extract)"
+        )
     },
     "enrich":   {"desc": "Detail enrichment (full descriptions + apply URLs)"},
     "score":    {"desc": "LLM scoring (fit 1-10)"},
@@ -67,6 +70,7 @@ def _run_discover(workers: int = 1) -> dict:
         "jobspy": None,
         "workday": None,
         "greenhouse": None,
+        "lever": None,
         "smartextract": None,
     }
 
@@ -102,6 +106,17 @@ def _run_discover(workers: int = 1) -> dict:
         log.error("Greenhouse discovery failed: %s", e)
         console.print(f"  [red]Greenhouse error:[/red] {e}")
         stats["greenhouse"] = f"error: {e}"
+
+    # Lever public postings API
+    console.print("  [cyan]Lever employer sites...[/cyan]")
+    try:
+        from applypilot.discovery.lever import run_lever_discovery
+        run_lever_discovery(workers=workers)
+        stats["lever"] = "ok"
+    except Exception as e:
+        log.error("Lever discovery failed: %s", e)
+        console.print(f"  [red]Lever error:[/red] {e}")
+        stats["lever"] = f"error: {e}"
 
     # Smart extract
     console.print("  [cyan]Smart extract (AI-powered scraping)...[/cyan]")

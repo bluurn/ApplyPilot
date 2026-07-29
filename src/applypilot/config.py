@@ -156,6 +156,16 @@ def load_greenhouse_config() -> dict:
     )
 
 
+def load_lever_config() -> dict:
+    """Load profile-aware Lever site configuration with personal overrides."""
+    return load_registry(
+        CONFIG_DIR,
+        "lever",
+        load_search_config(),
+        USER_CONFIG_DIR,
+    )
+
+
 def is_manual_ats(url: str | None) -> bool:
     """Check if a URL routes through an ATS that requires manual application."""
     if not url:

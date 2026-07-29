@@ -1,0 +1,77 @@
+# Europe-relevant Lever sites verified against the public Postings API.
+
+sites:
+  prismic:
+    name: "Prismic"
+    site: "prismic"
+    instance: "global"
+
+  finn:
+    name: "FINN"
+    site: "finn"
+    instance: "global"
+
+  backstory:
+    name: "Backstory"
+    site: "people-ai"
+    instance: "global"
+
+  distru:
+    name: "Distru"
+    site: "distru"
+    instance: "global"
+
+  vestiaire_collective:
+    name: "Vestiaire Collective"
+    site: "vestiairecollective"
+    instance: "global"
+
+  quantco:
+    name: "QuantCo"
+    site: "quantco-"
+    instance: "global"
+
+  coupa:
+    name: "Coupa"
+    site: "coupa"
+    instance: "global"
+
+  qover:
+    name: "Qover"
+    site: "Qover"
+    instance: "global"
+
+  kpler:
+    name: "Kpler"
+    site: "kpler"
+    instance: "global"
+
+  dilitrust:
+    name: "DiliTrust"
+    site: "dilitrust"
+    instance: "global"
+
+  spotify:
+    name: "Spotify"
+    site: "spotify"
+    instance: "global"
+
+  palantir:
+    name: "Palantir"
+    site: "palantir"
+    instance: "global"
+
+  kraken:
+    name: "Kraken"
+    site: "kraken123"
+    instance: "global"
+
+  qonto:
+    name: "Qonto"
+    site: "qonto"
+    instance: "global"
+
+  bigblue:
+    name: "Bigblue"
+    site: "bigblue"
+    instance: "global"

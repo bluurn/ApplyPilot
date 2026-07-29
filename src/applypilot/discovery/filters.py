@@ -57,6 +57,7 @@ def evaluate_location(
     accept: list[str],
     reject_non_remote: list[str],
     context: str | None = None,
+    explicit_geography: bool = False,
 ) -> LocationDecision:
     """Evaluate explicit geography, remote restrictions, and relocation signals."""
     if not location:
@@ -111,6 +112,8 @@ def evaluate_location(
             return LocationDecision(False, "remote_restricted")
         if any(marker in normalized for marker in worldwide_markers):
             return LocationDecision(True, "remote_worldwide")
+        if explicit_geography:
+            return LocationDecision(False, "remote_location_not_accepted")
         return LocationDecision(True, "remote_eligibility_unspecified")
 
     if rejected:
@@ -123,6 +126,13 @@ def location_is_allowed(
     accept: list[str],
     reject_non_remote: list[str],
     context: str | None = None,
+    explicit_geography: bool = False,
 ) -> bool:
     """Return the boolean form of :func:`evaluate_location`."""
-    return evaluate_location(location, accept, reject_non_remote, context).allowed
+    return evaluate_location(
+        location,
+        accept,
+        reject_non_remote,
+        context,
+        explicit_geography,
+    ).allowed

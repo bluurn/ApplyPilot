@@ -125,6 +125,25 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
     } <= result["boards"].keys()
 
 
+def test_packaged_eu_profile_includes_lever_sites() -> None:
+    result = load_registry(
+        config.CONFIG_DIR,
+        "lever",
+        {"search_profile": "eu"},
+    )
+
+    assert {
+        "prismic",
+        "finn",
+        "quantco",
+        "kpler",
+        "spotify",
+        "palantir",
+        "kraken",
+        "qonto",
+    } <= result["sites"].keys()
+
+
 def test_falls_back_to_legacy_when_profile_fragments_are_missing(tmp_path: Path) -> None:
     _write(tmp_path / "sites.yaml", {"sites": [{"name": "Legacy", "url": "https://example.com"}]})
     _write(tmp_path / "profiles.yaml", {"profiles": {"eu": {"sites": ["global", "eu"]}}})
