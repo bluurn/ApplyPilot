@@ -57,6 +57,7 @@
 
         shellHook = ''
           export UV_PROJECT_ENVIRONMENT="$PWD/.venv"
+          export PYTHONPATH="$PWD/src:''${PYTHONPATH:-}"
           export CHROME_PATH="${pkgs.chromium}/bin/chromium"
           export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$CHROME_PATH"
           export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
@@ -89,6 +90,7 @@
           echo "ApplyPilot development shell"
           echo "Python: $(python --version 2>&1)"
           echo "pytest: $(pytest --version 2>&1)"
+          echo "Source tree: $PWD/src"
           echo "Run 'uv sync --extra dev' to install the full project into .venv."
         '';
       };
