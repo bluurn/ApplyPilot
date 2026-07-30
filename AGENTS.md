@@ -166,6 +166,16 @@ Requirements:
 
 ## Discovery Roadmap
 
+### Tailoring determinism / BAML follow-up
+
+- Separate deterministic resume-fact extraction and role/bullet selection from
+  LLM rewriting.
+- Evaluate BAML at the LLM boundary for typed tailoring drafts, structured
+  parsing, retries, and invariant checks. Keep final fact validation and PDF
+  assembly in Python.
+- BAML integration must not replace deterministic source grounding or silently
+  broaden the allowed resume facts.
+
 ### Employer and ATS coverage
 
 - Expand Workday employers to roughly 100–300 useful companies.

@@ -2,7 +2,12 @@ import json
 
 from applypilot.database import init_db
 from applypilot.scoring import tailor
-from applypilot.scoring.tailor import tailor_resume
+from applypilot.scoring.tailor import (
+    _companies_from_resume,
+    _languages_from_resume,
+    assemble_resume_text,
+    tailor_resume,
+)
 from applypilot.scoring.validator import validate_json_fields
 
 
@@ -104,6 +109,55 @@ def test_validator_rejects_project_placeholders() -> None:
 
     assert result["passed"] is False
     assert any("Placeholder project metadata" in error for error in result["errors"])
+
+
+def test_assembly_omits_empty_projects_section() -> None:
+    rendered = assemble_resume_text(_resume_json(projects=[]), _profile())
+
+    assert "PROJECTS" not in rendered
+    assert "EDUCATION" in rendered
+
+
+def test_company_names_are_preserved_in_experience_headers() -> None:
+    profile = _profile()
+    profile["resume_facts"]["preserved_companies"] = ["Example GmbH"]
+
+    rendered = assemble_resume_text(_resume_json(), profile)
+
+    assert "Backend Engineer at Example - Example GmbH" in rendered
+
+
+def test_companies_are_extracted_from_source_experience() -> None:
+    source = """PROFESSIONAL EXPERIENCE
+Senior Engineer - Example GmbH
+
+Software Engineer - Another Labs
+
+EDUCATION
+Example University
+"""
+
+    assert _companies_from_resume(source) == ["Example GmbH", "Another Labs"]
+
+
+def test_header_preserves_location_authorization_and_languages() -> None:
+    profile = _profile()
+    profile["personal"] = {
+        "city": "Pinneberg",
+        "province_state": "Schleswig-Holstein",
+        "country": "Germany",
+    }
+    profile["work_authorization"] = {"legally_authorized_to_work": True}
+    profile["languages"] = "Russian (native), English, German"
+
+    rendered = assemble_resume_text(_resume_json(), profile)
+
+    assert "Pinneberg, Schleswig-Holstein, Germany | Authorized to work in Germany" in rendered
+    assert "Languages: Russian (native), English, German" in rendered
+
+
+def test_languages_are_extracted_from_source() -> None:
+    assert _languages_from_resume("EDUCATION & LANGUAGES\nLanguages: English, German") == "English, German"
 
 
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:

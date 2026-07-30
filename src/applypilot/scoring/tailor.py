@@ -222,7 +222,9 @@ def extract_json(raw: str) -> dict:
 
 # ── Resume Assembly (profile-driven header) ──────────────────────────────
 
-def assemble_resume_text(data: dict, profile: dict) -> str:
+def assemble_resume_text(
+    data: dict, profile: dict, preserved_companies: list[str] | None = None
+) -> str:
     """Convert JSON resume data to formatted plain text.
 
     Header (name, location, contact) is ALWAYS code-injected from the profile,
@@ -258,6 +260,21 @@ def assemble_resume_text(data: dict, profile: dict) -> str:
         contact_parts.append(personal["linkedin_url"])
     if contact_parts:
         lines.append(" | ".join(contact_parts))
+    location_parts = [
+        str(personal.get("city", "")).strip(),
+        str(personal.get("province_state", "")).strip(),
+        str(personal.get("country", "")).strip(),
+    ]
+    location = ", ".join(part for part in location_parts if part)
+    authorization = profile.get("work_authorization", {})
+    if location or authorization.get("legally_authorized_to_work"):
+        header_facts = [location] if location else []
+        if authorization.get("legally_authorized_to_work"):
+            header_facts.append("Authorized to work in Germany")
+        lines.append(" | ".join(header_facts))
+    languages = profile.get("languages", "")
+    if languages:
+        lines.append(f"Languages: {sanitize_text(str(languages))}")
     lines.append("")
 
     # Summary
@@ -273,30 +290,74 @@ def assemble_resume_text(data: dict, profile: dict) -> str:
     lines.append("")
 
     # Experience
+    if preserved_companies is None:
+        configured = profile.get("resume_facts", {}).get("preserved_companies", [])
+        preserved_companies = configured if isinstance(configured, list) else []
     lines.append("EXPERIENCE")
-    for entry in data.get("experience", []):
-        lines.append(sanitize_text(entry.get("header", "")))
+    # Keep the rendered resume one-page friendly. Entries are ordered newest
+    # first by the source resume, so the oldest roles are dropped first.
+    experience = data.get("experience", [])[:5]
+    for index, entry in enumerate(experience):
+        header = sanitize_text(entry.get("header", ""))
+        if index < len(preserved_companies):
+            company = sanitize_text(str(preserved_companies[index]))
+            if company and company.lower() not in header.lower():
+                header = f"{header} - {company}"
+        lines.append(header)
         if entry.get("subtitle"):
             lines.append(sanitize_text(entry["subtitle"]))
         for b in entry.get("bullets", []):
             lines.append(f"- {sanitize_text(b)}")
         lines.append("")
 
-    # Projects
-    lines.append("PROJECTS")
-    for entry in data.get("projects", []):
-        lines.append(sanitize_text(entry.get("header", "")))
-        if entry.get("subtitle"):
-            lines.append(sanitize_text(entry["subtitle"]))
-        for b in entry.get("bullets", []):
-            lines.append(f"- {sanitize_text(b)}")
-        lines.append("")
+    # Projects are optional. Do not emit an empty section when the source
+    # resume has no projects; an empty heading looks like a template artifact.
+    projects = data.get("projects", [])
+    if projects:
+        lines.append("PROJECTS")
+        for entry in projects:
+            lines.append(sanitize_text(entry.get("header", "")))
+            if entry.get("subtitle"):
+                lines.append(sanitize_text(entry["subtitle"]))
+            for b in entry.get("bullets", []):
+                lines.append(f"- {sanitize_text(b)}")
+            lines.append("")
 
     # Education
     lines.append("EDUCATION")
     lines.append(sanitize_text(str(data.get("education", ""))))
 
     return "\n".join(lines)
+
+
+def _companies_from_resume(resume_text: str) -> list[str]:
+    """Extract factual employer names from the source experience section."""
+    match = re.search(
+        r"(?ims)^\s*professional experience\s*$(?P<body>.*?)(?=^\s*education(?:\s*&\s*languages)?\s*$)",
+        resume_text,
+    )
+    if not match:
+        return []
+    companies: list[str] = []
+    for line in match.group("body").splitlines():
+        if line.lstrip().startswith("-") or " - " not in line:
+            continue
+        _, company = line.split(" - ", 1)
+        company = company.strip()
+        if re.fullmatch(
+            r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}",
+            company,
+        ) or company.lower() == "master resume":
+            continue
+        if company and company not in companies:
+            companies.append(company)
+    return companies
+
+
+def _languages_from_resume(resume_text: str) -> str:
+    """Extract the source resume's compact language line, when present."""
+    match = re.search(r"(?im)^\s*languages:\s*(.+?)\s*$", resume_text)
+    return match.group(1).strip() if match else ""
 
 
 # ── LLM Judge ────────────────────────────────────────────────────────────
@@ -394,6 +455,13 @@ def tailor_resume(
     Returns:
         (tailored_text, report) where report contains validation details.
     """
+    # Company names are factual source data, not an LLM choice.
+    source_companies = _companies_from_resume(resume_text)
+    source_languages = _languages_from_resume(resume_text)
+    profile = dict(profile)
+    if source_languages and not profile.get("languages"):
+        profile["languages"] = source_languages
+
     job_text = (
         f"TITLE: {job['title']}\n"
         f"COMPANY: {job['site']}\n"
@@ -454,12 +522,12 @@ def tailor_resume(
             if attempt < max_retries:
                 continue
             # Last attempt — assemble whatever we got
-            tailored = assemble_resume_text(data, profile)
+            tailored = assemble_resume_text(data, profile, source_companies)
             report["status"] = "failed_validation"
             return tailored, report
 
         # Assemble text (header injected by code, em dashes auto-fixed)
-        tailored = assemble_resume_text(data, profile)
+        tailored = assemble_resume_text(data, profile, source_companies)
 
         # Layer 2: LLM judge (catches subtle fabrication) — skipped in lenient mode
         if validation_mode == "lenient":
