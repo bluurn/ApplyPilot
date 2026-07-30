@@ -206,6 +206,9 @@ def validate_json_fields(
         ):
             errors.append("Projects are not grounded: original resume has no Projects section")
         for entry in data["projects"]:
+            subtitle = str(entry.get("subtitle", ""))
+            if re.search(r"\btech\s*\|\s*dates\b", subtitle, re.IGNORECASE):
+                errors.append("Placeholder project metadata: 'Tech | Dates'")
             for b in entry.get("bullets", []):
                 all_text_parts.append(b)
 

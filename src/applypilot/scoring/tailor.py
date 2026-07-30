@@ -93,7 +93,9 @@ Reframe EVERY bullet for this role. Same real work, different angle. Every bulle
 PROJECTS: Reorder by relevance. Drop irrelevant projects entirely. If the
 original resume has no Projects section, return an empty projects list. Use
 only named projects and underlying work present in the original resume. Never
-create a new project name, project description, achievement, or metric.
+create a new project name, project description, achievement, or metric. Use
+actual technologies and dates in project subtitles; if either is unavailable,
+leave the subtitle empty. Never write placeholder text such as "Tech | Dates".
 
 BULLETS: Strong verb + what you built + quantified impact. Vary verbs (Built, Designed, Implemented, Reduced, Automated, Deployed, Operated, Optimized). Most relevant first. Max 4 per section.
 

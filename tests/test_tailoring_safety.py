@@ -87,6 +87,25 @@ def test_validator_rejects_invented_projects_when_source_has_no_projects() -> No
     assert any("Projects are not grounded" in error for error in result["errors"])
 
 
+def test_validator_rejects_project_placeholders() -> None:
+    result = validate_json_fields(
+        _resume_json(
+            projects=[
+                {
+                    "header": "API Service",
+                    "subtitle": "Tech | Dates",
+                    "bullets": ["Built an API service."],
+                }
+            ]
+        ),
+        _profile(),
+        original_text="PROJECTS\nAPI Service\nPython | 2020",
+    )
+
+    assert result["passed"] is False
+    assert any("Placeholder project metadata" in error for error in result["errors"])
+
+
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:
     class FakeClient:
         def chat(self, *args, **kwargs) -> str:
