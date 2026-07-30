@@ -8,7 +8,7 @@ from applypilot.scoring.validator import validate_json_fields
 
 def _profile() -> dict:
     return {
-        "skills_boundary": {"languages": ["Python", "Elixir"]},
+        "skills_boundary": {"languages": ["Python", "Elixir", "Git", "Nix"]},
         "resume_facts": {
             "preserved_companies": [],
             "preserved_projects": [],
@@ -43,15 +43,14 @@ def _resume_json(skills: str = "Python") -> dict:
     }
 
 
-def test_validator_rejects_profile_skill_absent_from_original_resume() -> None:
+def test_validator_accepts_verified_profile_skill_absent_from_original_resume() -> None:
     result = validate_json_fields(
         _resume_json("Python, Elixir"),
         _profile(),
         original_text="Python backend engineer. Built an API Service.",
     )
 
-    assert result["passed"] is False
-    assert "Skill not grounded in original resume: 'elixir'" in result["errors"]
+    assert result["passed"] is True
 
 
 def test_validator_accepts_common_skill_alias_from_original_resume() -> None:
@@ -62,6 +61,17 @@ def test_validator_accepts_common_skill_alias_from_original_resume() -> None:
     )
 
     assert result["passed"] is True
+
+
+def test_validator_rejects_unlisted_skill() -> None:
+    result = validate_json_fields(
+        _resume_json("Python, Django"),
+        _profile(),
+        original_text="Python backend engineer.",
+    )
+
+    assert result["passed"] is False
+    assert "Fabricated skill: 'django'" in result["errors"]
 
 
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:

@@ -21,7 +21,7 @@ from applypilot.llm import get_client
 from applypilot.scoring.validator import (
     BANNED_WORDS,
     sanitize_text,
-    skill_is_grounded,
+    skill_is_allowed,
     validate_json_fields,
 )
 
@@ -147,7 +147,7 @@ ISSUES: (list any problems, or "none")
 - Change tone and wording extensively
 
 ## WHAT IS FABRICATION (FAIL for these):
-1. Adding tools, languages, or frameworks to TECHNICAL SKILLS that aren't in the original. Check the entire original resume, including experience bullets and aliases such as Go/Golang and Ruby/Ruby on Rails. The allowed skills are ONLY: {skills_str}
+1. Adding tools, languages, or frameworks to TECHNICAL SKILLS that aren't in the original resume or verified skills boundary. Check the entire original resume, including experience bullets and aliases such as Go/Golang and Ruby/Ruby on Rails. The allowed skills are ONLY: {skills_str}
 2. Inventing NEW metrics or numbers not in the original. The real metrics are: {metrics_str}
 3. Inventing work that has no basis in any original bullet (completely new achievements).
 4. Adding companies, roles, or degrees that don't exist.
@@ -336,7 +336,7 @@ def judge_tailored_resume(
     # Models sometimes misread a skill that is plainly present in the source
     # resume. Reconcile only a skill-only rejection; project, metric, date, and
     # achievement claims remain hard failures and still require a retry.
-    if not passed and _judge_skill_issue_is_grounded(issues, original_text):
+    if not passed and _judge_skill_issue_is_grounded(issues, original_text, profile):
         passed = True
         issues = "none (judge skill claim reconciled against original resume)"
 
@@ -348,7 +348,9 @@ def judge_tailored_resume(
     }
 
 
-def _judge_skill_issue_is_grounded(issues: str, original_text: str) -> bool:
+def _judge_skill_issue_is_grounded(
+    issues: str, original_text: str, profile: dict
+) -> bool:
     """Ignore a judge rejection only when every cited skill is grounded."""
     lowered = issues.lower()
     if "skill" not in lowered or any(
@@ -357,7 +359,9 @@ def _judge_skill_issue_is_grounded(issues: str, original_text: str) -> bool:
     ):
         return False
     cited = re.findall(r"['\"]([^'\"]+)['\"]", issues)
-    return bool(cited) and all(skill_is_grounded(skill, original_text) for skill in cited)
+    return bool(cited) and all(
+        skill_is_allowed(skill, original_text, profile) for skill in cited
+    )
 
 
 # ── Core Tailoring ───────────────────────────────────────────────────────

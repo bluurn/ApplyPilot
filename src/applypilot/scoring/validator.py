@@ -106,6 +106,15 @@ def skill_is_grounded(skill: str, original_text: str) -> bool:
     )
 
 
+def skill_is_allowed(skill: str, original_text: str, profile: dict) -> bool:
+    """Return whether a skill is in the original resume or verified profile."""
+    if skill_is_grounded(skill, original_text):
+        return True
+    allowed = _build_skills_set(profile)
+    candidates = SKILL_ALIASES.get(skill.lower().strip(), (skill,))
+    return any(candidate.lower() in allowed for candidate in candidates)
+
+
 def sanitize_text(text: str) -> str:
     """Auto-fix common LLM output issues instead of rejecting."""
     text = text.replace(" \u2014 ", ", ").replace("\u2014", ", ")   # em dash -> comma
@@ -157,7 +166,8 @@ def validate_json_fields(
             if len(fake) <= 2:
                 continue
             if fake in skills_text and (
-                not original_text or not skill_is_grounded(fake, original_text)
+                not original_text
+                or not skill_is_allowed(fake, original_text, profile)
             ):
                 errors.append(f"Fabricated skill: '{fake}'")
         if original_text:
@@ -165,7 +175,7 @@ def validate_json_fields(
                 if (
                     len(skill) > 2
                     and skill in skills_text
-                    and not skill_is_grounded(skill, original_text)
+                    and not skill_is_allowed(skill, original_text, profile)
                 ):
                     errors.append(
                         f"Skill not grounded in original resume: '{skill}'"
