@@ -166,16 +166,6 @@ Requirements:
 
 ## Discovery Roadmap
 
-### Tailoring determinism / BAML follow-up
-
-- Separate deterministic resume-fact extraction and role/bullet selection from
-  LLM rewriting.
-- Evaluate BAML at the LLM boundary for typed tailoring drafts, structured
-  parsing, retries, and invariant checks. Keep final fact validation and PDF
-  assembly in Python.
-- BAML integration must not replace deterministic source grounding or silently
-  broaden the allowed resume facts.
-
 ### Employer and ATS coverage
 
 - Expand Workday employers to roughly 100–300 useful companies.
@@ -184,6 +174,15 @@ Requirements:
 - Expand Ashby coverage beyond the initial 23 verified boards.
 - Improve Europe-relevant JobSpy coverage.
 - Extend strong Europe and remote filtering as new source data permits.
+
+### Final / last-priority TODO: BAML tailoring backend
+
+- Keep BAML deferred until deterministic resume-fact extraction, role/bullet
+  selection, and claim validation are stable in the Python path.
+- Then evaluate BAML at the LLM boundary for typed tailoring drafts,
+  structured parsing, retries, and invariant checks.
+- BAML must not replace deterministic source grounding or silently broaden the
+  allowed resume facts.
 
 ### Watchlist
 
