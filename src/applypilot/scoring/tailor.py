@@ -432,6 +432,11 @@ def tailor_resume(
             avoid_notes.append("Output was not valid JSON. Return ONLY a JSON object, nothing else.")
             continue
 
+        # The source résumé has no Projects section, so never let the model
+        # manufacture one from selected-impact bullets.
+        if not re.search(r"(?im)^\s*(selected\s+)?projects\s*:?\s*$", resume_text):
+            data["projects"] = []
+
         # Layer 1: Validate JSON fields
         validation = validate_json_fields(
             data,
