@@ -19,6 +19,7 @@ from typing import cast
 from applypilot.config import RESUME_PATH, TAILORED_DIR, load_profile
 from applypilot.database import get_connection, get_jobs_by_stage
 from applypilot.llm import get_client
+from applypilot.scoring import baml_adapter
 from applypilot.scoring.contracts import TailoredDraft, is_tailored_draft
 from applypilot.scoring.validator import (
     BANNED_WORDS,
@@ -501,11 +502,23 @@ def tailor_resume(
             {"role": "user", "content": f"ORIGINAL RESUME:\n{resume_text}\n\n---\n\nTARGET JOB:\n{job_text}\n\nReturn the JSON:"},
         ]
 
-        raw = client.chat(messages, max_tokens=2048, temperature=0.4)
+        if baml_adapter.enabled():
+            try:
+                raw = baml_adapter.rewrite(
+                    resume_text,
+                    job_text,
+                    resume_text,
+                    tailor_prompt_base,
+                )
+            except (ImportError, ModuleNotFoundError, RuntimeError) as exc:
+                log.warning("BAML backend unavailable; falling back to OpenAI client: %s", exc)
+                raw = client.chat(messages, max_tokens=2048, temperature=0.4)
+        else:
+            raw = client.chat(messages, max_tokens=2048, temperature=0.4)
 
         # Parse JSON from response
         try:
-            data = cast(dict, extract_json(raw))
+            data = cast(dict, raw) if isinstance(raw, dict) else cast(dict, extract_json(raw))
         except ValueError:
             avoid_notes.append("Output was not valid JSON. Return ONLY a JSON object, nothing else.")
             continue

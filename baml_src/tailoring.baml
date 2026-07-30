@@ -28,10 +28,10 @@ client<llm> TailoringClient {
 }
 
 function RewriteTailoredResume(
-  original_resume string,
-  target_job string,
-  fixed_experience string,
-  fixed_skills string
+  original_resume: string,
+  target_job: string,
+  fixed_experience: string,
+  fixed_skills: string
 ) -> TailoredDraft {
   client TailoringClient
   prompt #"
