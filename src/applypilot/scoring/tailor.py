@@ -14,10 +14,12 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
+from typing import cast
 
 from applypilot.config import RESUME_PATH, TAILORED_DIR, load_profile
 from applypilot.database import get_connection, get_jobs_by_stage
 from applypilot.llm import get_client
+from applypilot.scoring.contracts import TailoredDraft, is_tailored_draft
 from applypilot.scoring.validator import (
     BANNED_WORDS,
     sanitize_text,
@@ -177,7 +179,7 @@ grounded in the original resume."""
 
 # ── JSON Extraction ───────────────────────────────────────────────────────
 
-def extract_json(raw: str) -> dict:
+def extract_json(raw: str) -> TailoredDraft:
     """Robustly extract JSON from LLM response (handles fences, preamble).
 
     Args:
@@ -193,7 +195,9 @@ def extract_json(raw: str) -> dict:
 
     # Direct parse
     try:
-        return json.loads(raw)
+            value = json.loads(raw)
+            if is_tailored_draft(value):
+                return value
     except json.JSONDecodeError:
         pass
 
@@ -204,7 +208,9 @@ def extract_json(raw: str) -> dict:
             if part.startswith("json"):
                 part = part[4:].strip()
             try:
-                return json.loads(part)
+                value = json.loads(part)
+                if is_tailored_draft(value):
+                    return value
             except json.JSONDecodeError:
                 continue
 
@@ -213,7 +219,9 @@ def extract_json(raw: str) -> dict:
     end = raw.rfind("}")
     if start != -1 and end > start:
         try:
-            return json.loads(raw[start:end + 1])
+            value = json.loads(raw[start:end + 1])
+            if is_tailored_draft(value):
+                return value
         except json.JSONDecodeError:
             pass
 
@@ -497,7 +505,7 @@ def tailor_resume(
 
         # Parse JSON from response
         try:
-            data = extract_json(raw)
+            data = cast(dict, extract_json(raw))
         except ValueError:
             avoid_notes.append("Output was not valid JSON. Return ONLY a JSON object, nothing else.")
             continue

@@ -2,6 +2,7 @@ import json
 
 from applypilot.database import init_db
 from applypilot.scoring import tailor
+from applypilot.scoring.contracts import is_tailored_draft
 from applypilot.scoring.tailor import (
     _companies_from_resume,
     _languages_from_resume,
@@ -158,6 +159,13 @@ def test_header_preserves_location_authorization_and_languages() -> None:
 
 def test_languages_are_extracted_from_source() -> None:
     assert _languages_from_resume("EDUCATION & LANGUAGES\nLanguages: English, German") == "English, German"
+
+
+def test_tailored_draft_contract_requires_structured_sections() -> None:
+    assert is_tailored_draft(_resume_json()) is True
+    incomplete = _resume_json()
+    incomplete.pop("projects")
+    assert is_tailored_draft(incomplete) is False
 
 
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:
