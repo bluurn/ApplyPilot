@@ -9,7 +9,7 @@ from applypilot.scoring.tailor import (
     assemble_resume_text,
     tailor_resume,
 )
-from applypilot.scoring.validator import validate_json_fields
+from applypilot.scoring.validator import unsupported_outcome_clause, validate_json_fields
 
 
 def _profile() -> dict:
@@ -166,6 +166,31 @@ def test_tailored_draft_contract_requires_structured_sections() -> None:
     incomplete = _resume_json()
     incomplete.pop("projects")
     assert is_tailored_draft(incomplete) is False
+
+
+def test_validator_rejects_unsupported_outcome_claim() -> None:
+    result = validate_json_fields(
+        {
+            **_resume_json(),
+            "experience": [{
+                "header": "Backend Engineer at Example",
+                "subtitle": "Python | 2020-present",
+                "bullets": ["Led a remote team through mentoring, increasing team productivity."],
+            }],
+        },
+        _profile(),
+        original_text="Led a remote team through mentoring, code reviews, and clearer delivery flow.",
+    )
+
+    assert result["passed"] is False
+    assert any("Unsupported outcome claim" in error for error in result["errors"])
+
+
+def test_validator_accepts_grounded_outcome_claim() -> None:
+    assert unsupported_outcome_clause(
+        "Led a remote team through mentoring, improving delivery flow.",
+        "Led a remote team through mentoring, code reviews, and clearer delivery flow.",
+    ) is None
 
 
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:

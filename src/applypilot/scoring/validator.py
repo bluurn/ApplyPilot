@@ -78,6 +78,12 @@ SKILL_ALIASES: dict[str, tuple[str, ...]] = {
     "ruby on rails": ("rails", "ruby on rails"),
 }
 
+OUTCOME_MARKERS: tuple[str, ...] = (
+    "increasing", "improving", "enhancing", "ensuring", "minimizing",
+    "streamlining", "optimizing", "reducing", "accelerating", "strengthening",
+)
+_CLAIM_STOPWORDS = {"and", "the", "a", "an", "to", "of", "for", "with", "on", "in"}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -122,6 +128,33 @@ def sanitize_text(text: str) -> str:
     text = text.replace("\u201c", '"').replace("\u201d", '"')   # smart double quotes
     text = text.replace("\u2018", "'").replace("\u2019", "'")   # smart single quotes
     return text.strip()
+
+
+def unsupported_outcome_clause(bullet: str, original_text: str) -> str | None:
+    """Find a result clause whose substantive terms are not source-grounded.
+
+    Rewritten bullets may change wording, but an outcome clause after a comma
+    must retain at least two meaningful terms from the source resume. This
+    catches unsupported additions such as ``increasing team productivity``.
+    """
+    if not original_text:
+        return None
+    source_tokens = {
+        token for token in re.findall(r"[a-z][a-z0-9+#.-]+", original_text.lower())
+        if token not in _CLAIM_STOPWORDS and len(token) > 2
+    }
+    clauses = re.split(r"[,;]", bullet)
+    for clause in clauses[1:]:
+        lowered = clause.lower().strip()
+        if not any(marker in lowered for marker in OUTCOME_MARKERS):
+            continue
+        claim_tokens = {
+            token for token in re.findall(r"[a-z][a-z0-9+#.-]+", lowered)
+            if token not in _CLAIM_STOPWORDS and len(token) > 2
+        }
+        if len(claim_tokens & source_tokens) < 2:
+            return clause.strip()
+    return None
 
 
 # ── JSON Field Validation ─────────────────────────────────────────────────
@@ -198,6 +231,9 @@ def validate_json_fields(
         for entry in data["experience"]:
             for b in entry.get("bullets", []):
                 all_text_parts.append(b)
+                unsupported = unsupported_outcome_clause(b, original_text)
+                if unsupported:
+                    errors.append(f"Unsupported outcome claim: '{unsupported}'")
 
     # Projects: collect bullets
     if isinstance(data["projects"], list):
