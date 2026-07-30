@@ -13,6 +13,12 @@ from applypilot.discovery.watchlist import match_watchlist
 
 DEFAULT_WEIGHTS = {
     "python": 3.0,
+    "ruby": 3.0,
+    "elixir": 3.0,
+    "go": 3.0,
+    "rust": 3.0,
+    "typescript_javascript": 3.0,
+    "unpreferred_language": -2.0,
     "backend": 3.0,
     "germany": 3.0,
     "europe": 2.0,
@@ -21,6 +27,24 @@ DEFAULT_WEIGHTS = {
     "salary": 1.0,
     "watchlist": 2.0,
 }
+
+PREFERRED_LANGUAGE_MARKERS = {
+    "python": ("python", "django", "fastapi"),
+    "ruby": ("ruby", "rails", "ruby on rails"),
+    "elixir": ("elixir", "phoenix"),
+    "go": ("golang", "go developer", "go engineer"),
+    "rust": ("rust",),
+    "typescript_javascript": ("typescript", "javascript", "node.js", "nodejs"),
+}
+UNPREFERRED_LANGUAGE_MARKERS = (
+    "java",
+    "kotlin",
+    "c#",
+    ".net",
+    "dotnet",
+    "sap",
+    "abap",
+)
 
 GERMANY_MARKERS = (
     "germany",
@@ -110,7 +134,16 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     location = str(job.get("location") or "").casefold()
     text = f"{title}\n{description}"
 
-    python = _contains_word(text, "python") or "django" in text or "fastapi" in text
+    language_signals = {
+        name: any(marker in text for marker in markers)
+        for name, markers in PREFERRED_LANGUAGE_MARKERS.items()
+    }
+    preferred_language = any(language_signals.values())
+    unpreferred_language = (
+        not preferred_language
+        and any(marker in text for marker in UNPREFERRED_LANGUAGE_MARKERS)
+    )
+    python = language_signals["python"]
     backend = (
         "backend" in text
         or "back-end" in text
@@ -129,7 +162,7 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     # Closely related signals are grouped with max(), preventing a Python
     # backend title or Germany-remote location from being counted repeatedly.
     technical_contribution = max(
-        weights["python"] if python else 0,
+        *(weights[name] if active else 0 for name, active in language_signals.items()),
         weights["backend"] if backend else 0,
     )
     geography_contribution = max(
@@ -139,6 +172,7 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     )
     contributions = {
         "technical_fit": technical_contribution,
+        "language_penalty": weights["unpreferred_language"] if unpreferred_language else 0,
         "geography_fit": geography_contribution,
         "relocation": weights["relocation"] if relocation else 0,
         "salary": weights["salary"] if salary else 0,
@@ -146,6 +180,8 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     }
     signals = {
         "python": python,
+        "languages": language_signals,
+        "unpreferred_language": unpreferred_language,
         "backend": backend,
         "germany": germany,
         "europe": europe,
@@ -169,9 +205,10 @@ def explain_signals(signals: dict) -> str:
         "relocation": "relocation",
         "salary": "salary",
         "watchlist": "watchlist",
+        "language_penalty": "language penalty",
     }
     parts = [
-        f"{labels[name]} +{value:g}"
+        f"{labels[name]} {value:+g}"
         for name, value in signals.get("contributions", {}).items()
         if value
     ]

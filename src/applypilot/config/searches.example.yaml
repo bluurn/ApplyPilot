@@ -21,6 +21,12 @@ watchlist:
 ranking:
   weights:
     python: 3
+    ruby: 3
+    elixir: 3
+    go: 3
+    rust: 3
+    typescript_javascript: 3
+    unpreferred_language: -2
     backend: 3
     germany: 3
     europe: 2
@@ -37,6 +43,12 @@ scoring:
   preferred_title_phrases:
     - "backend"
     - "python"
+    - "ruby"
+    - "elixir"
+    - "golang"
+    - "rust"
+    - "typescript"
+    - "javascript"
     - "full stack"
     - "fullstack"
     - "software engineer"
@@ -79,6 +91,16 @@ queries:
   - query: "python developer"
     tier: 2
   - query: "python engineer"
+    tier: 2
+  - query: "ruby engineer"
+    tier: 2
+  - query: "elixir engineer"
+    tier: 2
+  - query: "golang engineer"
+    tier: 2
+  - query: "rust engineer"
+    tier: 2
+  - query: "typescript engineer"
     tier: 2
   - query: "DevOps engineer"
     tier: 2

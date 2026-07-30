@@ -14,6 +14,12 @@ def _config() -> dict:
         "ranking": {
             "weights": {
                 "python": 3,
+                "ruby": 3,
+                "elixir": 3,
+                "go": 3,
+                "rust": 3,
+                "typescript_javascript": 3,
+                "unpreferred_language": -2,
                 "backend": 3,
                 "germany": 3,
                 "europe": 2,
@@ -65,6 +71,23 @@ def test_ranking_does_not_reward_denied_relocation() -> None:
 
     assert not result["signals"]["relocation"]
     assert result["signals"]["contributions"]["relocation"] == 0
+
+
+def test_ranking_prefers_supported_languages_and_penalizes_unpreferred_stack() -> None:
+    preferred = rank_job(
+        {"title": "Senior Rust Backend Engineer", "location": "Berlin"},
+        _config(),
+    )
+    java = rank_job(
+        {"title": "Senior Java Backend Engineer", "location": "Berlin"},
+        _config(),
+    )
+
+    assert preferred["signals"]["languages"]["rust"]
+    assert not preferred["signals"]["unpreferred_language"]
+    assert java["signals"]["unpreferred_language"]
+    assert java["signals"]["contributions"]["language_penalty"] == -2
+    assert preferred["score"] > java["score"]
 
 
 def test_api_signal_does_not_match_inside_unrelated_words() -> None:
