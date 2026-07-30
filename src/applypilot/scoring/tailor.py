@@ -456,13 +456,15 @@ def tailor_resume(
 # ── Batch Entry Point ────────────────────────────────────────────────────
 
 def run_tailoring(min_score: int = 7, limit: int = 20,
-                  validation_mode: str = "normal") -> dict:
+                  validation_mode: str = "normal",
+                  shortlist_only: bool = False) -> dict:
     """Generate tailored resumes for high-scoring jobs.
 
     Args:
         min_score:       Minimum fit_score to tailor for.
         limit:           Maximum jobs to process.
         validation_mode: "strict", "normal", or "lenient".
+        shortlist_only:   Process only explicitly shortlisted jobs.
 
     Returns:
         {"approved": int, "failed": int, "errors": int, "elapsed": float}
@@ -471,14 +473,27 @@ def run_tailoring(min_score: int = 7, limit: int = 20,
     resume_text = RESUME_PATH.read_text(encoding="utf-8")
     conn = get_connection()
 
-    jobs = get_jobs_by_stage(conn=conn, stage="pending_tailor", min_score=min_score, limit=limit)
+    jobs = get_jobs_by_stage(
+        conn=conn,
+        stage="pending_tailor",
+        min_score=min_score,
+        limit=limit,
+        shortlisted_only=shortlist_only,
+    )
 
     if not jobs:
-        log.info("No untailored jobs with score >= %d.", min_score)
+        qualifier = " shortlisted" if shortlist_only else ""
+        log.info("No%s untailored jobs with score >= %d.", qualifier, min_score)
         return {"approved": 0, "failed": 0, "errors": 0, "elapsed": 0.0}
 
     TAILORED_DIR.mkdir(parents=True, exist_ok=True)
-    log.info("Tailoring resumes for %d jobs (score >= %d)...", len(jobs), min_score)
+    qualifier = " shortlisted" if shortlist_only else ""
+    log.info(
+        "Tailoring resumes for %d%s jobs (score >= %d)...",
+        len(jobs),
+        qualifier,
+        min_score,
+    )
     t0 = time.time()
     completed = 0
     results: list[dict] = []

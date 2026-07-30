@@ -160,6 +160,18 @@ AI scores shortlisted jobs 1-10 against your profile. The shortlist uses the con
 ### Tailor
 Generates a custom resume per job: reorders experience, emphasizes relevant skills, incorporates keywords from the job description. Your `resume_facts` (companies, projects, metrics) are preserved exactly. The AI reorganizes but never fabricates.
 
+Use the persistent shortlist to keep tailoring controlled:
+
+```bash
+applypilot shortlist add 'https://company.example/jobs/123'
+applypilot shortlist list
+applypilot shortlist remove 'https://company.example/jobs/123'
+applypilot run tailor --shortlist
+```
+
+Both the source URL and the final application URL are accepted. Duplicate
+country variants resolve to one canonical job.
+
 ### Cover Letter
 Writes a targeted cover letter per job referencing the specific company, role, and how your experience maps to their requirements.
 
@@ -183,6 +195,10 @@ applypilot apply --gen --url URL       # generate prompt file for manual debuggi
 ```
 applypilot init                         # First-time setup wizard
 applypilot doctor                       # Verify setup, diagnose missing requirements
+applypilot shortlist add URL            # Select one canonical job for tailoring
+applypilot shortlist list               # Review selected jobs in priority order
+applypilot shortlist remove URL         # Remove a selected job
+applypilot run tailor --shortlist       # Tailor only explicitly selected jobs
 applypilot run [stages...]              # Run pipeline stages (or 'all')
 applypilot run --workers 4              # Parallel discovery/enrichment
 applypilot run --stream                 # Concurrent stages (streaming mode)

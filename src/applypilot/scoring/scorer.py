@@ -218,6 +218,33 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
           )
         """
     )
+    conn.execute(
+        """
+        UPDATE jobs AS canonical
+        SET is_shortlisted = 1,
+            shortlisted_at = COALESCE(
+                canonical.shortlisted_at,
+                (
+                    SELECT MIN(duplicate.shortlisted_at)
+                    FROM jobs AS duplicate
+                    WHERE duplicate.duplicate_of = canonical.url
+                      AND duplicate.is_shortlisted = 1
+                )
+            )
+        WHERE EXISTS (
+            SELECT 1 FROM jobs AS duplicate
+            WHERE duplicate.duplicate_of = canonical.url
+              AND duplicate.is_shortlisted = 1
+        )
+        """
+    )
+    conn.execute(
+        """
+        UPDATE jobs
+        SET is_shortlisted = 0, shortlisted_at = NULL
+        WHERE duplicate_of IS NOT NULL AND is_shortlisted = 1
+        """
+    )
     conn.commit()
     return {
         "eligible": eligible,

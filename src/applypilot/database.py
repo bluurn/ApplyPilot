@@ -108,6 +108,8 @@ def init_db(db_path: Path | str | None = None) -> sqlite3.Connection:
             duplicate_of          TEXT,
             scoring_eligible      INTEGER,
             scoring_eligibility_reason TEXT,
+            is_shortlisted        INTEGER DEFAULT 0,
+            shortlisted_at        TEXT,
             strategy              TEXT,
             source_id             TEXT,
             discovered_at         TEXT,
@@ -176,6 +178,8 @@ _ALL_COLUMNS: dict[str, str] = {
     "duplicate_of": "TEXT",
     "scoring_eligible": "INTEGER",
     "scoring_eligibility_reason": "TEXT",
+    "is_shortlisted": "INTEGER DEFAULT 0",
+    "shortlisted_at": "TEXT",
     "strategy": "TEXT",
     "source_id": "TEXT",
     "discovered_at": "TEXT",
@@ -313,6 +317,11 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
         "WHERE full_description IS NOT NULL AND fit_score IS NULL "
         "AND scoring_eligible = 1"
     ).fetchone()[0]
+    stats["shortlisted"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs "
+        "WHERE is_shortlisted = 1 AND eligibility_allowed IS NOT 0 "
+        "AND duplicate_of IS NULL"
+    ).fetchone()[0]
 
     # Score distribution
     dist_rows = conn.execute(
@@ -330,7 +339,16 @@ def get_stats(conn: sqlite3.Connection | None = None) -> dict:
     stats["untailored_eligible"] = conn.execute(
         "SELECT COUNT(*) FROM jobs "
         "WHERE fit_score >= 7 AND full_description IS NOT NULL "
-        "AND tailored_resume_path IS NULL"
+        "AND tailored_resume_path IS NULL "
+        "AND eligibility_allowed IS NOT 0 AND duplicate_of IS NULL"
+    ).fetchone()[0]
+
+    stats["untailored_shortlisted"] = conn.execute(
+        "SELECT COUNT(*) FROM jobs "
+        "WHERE is_shortlisted = 1 AND fit_score >= 7 "
+        "AND full_description IS NOT NULL "
+        "AND tailored_resume_path IS NULL "
+        "AND eligibility_allowed IS NOT 0 AND duplicate_of IS NULL"
     ).fetchone()[0]
 
     stats["tailor_exhausted"] = conn.execute(
@@ -426,7 +444,8 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict],
 def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
                       stage: str = "discovered",
                       min_score: int | None = None,
-                      limit: int = 100) -> list[dict]:
+                      limit: int = 100,
+                      shortlisted_only: bool = False) -> list[dict]:
     """Fetch jobs filtered by pipeline stage.
 
     Args:
@@ -434,6 +453,7 @@ def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
         stage: One of "discovered", "enriched", "scored", "tailored", "applied".
         min_score: Minimum fit_score filter (only relevant for scored+ stages).
         limit: Maximum number of rows to return.
+        shortlisted_only: Restrict results to explicitly shortlisted jobs.
 
     Returns:
         List of job dicts.
@@ -471,8 +491,12 @@ def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
         where += " AND fit_score >= ?"
         params.append(min_score)
 
+    if shortlisted_only:
+        where += " AND is_shortlisted = 1"
+
     query = (
         f"SELECT * FROM jobs WHERE {where} "
+        "AND eligibility_allowed IS NOT 0 AND duplicate_of IS NULL "
         "ORDER BY is_watchlist DESC, discovery_score DESC NULLS LAST, "
         "fit_score DESC NULLS LAST, discovered_at DESC"
     )

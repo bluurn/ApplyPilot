@@ -23,6 +23,8 @@ app = typer.Typer(
     help="AI-powered end-to-end job application pipeline.",
     no_args_is_help=True,
 )
+shortlist_app = typer.Typer(help="Manage the explicit job tailoring shortlist.")
+app.add_typer(shortlist_app, name="shortlist")
 console = Console()
 log = logging.getLogger(__name__)
 
@@ -98,6 +100,11 @@ def run(
             "lenient: banned words ignored, LLM judge skipped (fastest, fewest API calls)."
         ),
     ),
+    shortlist: bool = typer.Option(
+        False,
+        "--shortlist",
+        help="For tailoring, process only explicitly shortlisted jobs.",
+    ),
 ) -> None:
     """Run pipeline stages: discover, enrich, score, tailor, cover, pdf."""
     _bootstrap()
@@ -129,6 +136,9 @@ def run(
             f"Choose from: {', '.join(valid_modes)}"
         )
         raise typer.Exit(code=1)
+    if shortlist and stream:
+        console.print("[red]--shortlist cannot be combined with --stream.[/red]")
+        raise typer.Exit(code=1)
 
     result = run_pipeline(
         stages=stage_list,
@@ -137,6 +147,7 @@ def run(
         stream=stream,
         workers=workers,
         validation_mode=validation,
+        shortlist_only=shortlist,
     )
 
     if result.get("errors"):
@@ -327,8 +338,12 @@ def status() -> None:
         "Next paid shortlist",
         str(min(stats["scoring_candidates"], shortlist_limit)),
     )
+    summary.add_row("Explicitly shortlisted", str(stats["shortlisted"]))
     summary.add_row("Tailored resumes", str(stats["tailored"]))
     summary.add_row("Pending tailoring (7+)", str(stats["untailored_eligible"]))
+    summary.add_row(
+        "Shortlisted pending tailoring", str(stats["untailored_shortlisted"])
+    )
     summary.add_row("Cover letters", str(stats["with_cover_letter"]))
     summary.add_row("Ready to apply", str(stats["ready_to_apply"]))
     summary.add_row("Applied", str(stats["applied"]))
@@ -386,6 +401,94 @@ def status() -> None:
         console.print(site_table)
 
     console.print()
+
+
+@shortlist_app.command("add")
+def shortlist_add(
+    url: str = typer.Argument(
+        ...,
+        help="Job source or application URL, usually copied from an 'open' link.",
+    ),
+) -> None:
+    """Add a job to the canonical tailoring shortlist."""
+    _bootstrap()
+
+    from applypilot.database import get_connection
+    from applypilot.shortlist import add_job
+
+    status_value, job = add_job(get_connection(), url)
+    if status_value == "not_found":
+        console.print("[red]Job URL was not found in ApplyPilot.[/red]")
+        raise typer.Exit(code=1)
+    if status_value == "ineligible":
+        console.print(
+            f"[red]Job is ineligible:[/red] {job.get('title') if job else url}"
+        )
+        raise typer.Exit(code=1)
+    title = job.get("title") if job else url
+    company = (job.get("company") or job.get("site")) if job else ""
+    if status_value == "already_added":
+        console.print(f"[yellow]Already shortlisted:[/yellow] {company} — {title}")
+    else:
+        console.print(f"[green]Shortlisted:[/green] {company} — {title}")
+
+
+@shortlist_app.command("remove")
+def shortlist_remove(
+    url: str = typer.Argument(..., help="Job source or application URL."),
+) -> None:
+    """Remove a job from the canonical tailoring shortlist."""
+    _bootstrap()
+
+    from applypilot.database import get_connection
+    from applypilot.shortlist import remove_job
+
+    status_value, job = remove_job(get_connection(), url)
+    if status_value == "not_found":
+        console.print("[red]Job URL was not found in ApplyPilot.[/red]")
+        raise typer.Exit(code=1)
+    title = job.get("title") if job else url
+    company = (job.get("company") or job.get("site")) if job else ""
+    if status_value == "not_shortlisted":
+        console.print(f"[yellow]Not shortlisted:[/yellow] {company} — {title}")
+    else:
+        console.print(f"[green]Removed:[/green] {company} — {title}")
+
+
+@shortlist_app.command("list")
+def shortlist_list() -> None:
+    """List shortlisted canonical jobs in application priority order."""
+    _bootstrap()
+
+    from applypilot.database import get_connection
+    from applypilot.shortlist import list_jobs
+
+    jobs = list_jobs(get_connection())
+    if not jobs:
+        console.print("[dim]Shortlist: empty[/dim]")
+        return
+    table = Table(title=f"Application Shortlist ({len(jobs)})", show_header=True)
+    table.add_column("Company")
+    table.add_column("Role")
+    table.add_column("Location")
+    table.add_column("LLM", justify="right")
+    table.add_column("Rank", justify="right")
+    table.add_column("Link")
+    for job in jobs:
+        url = job.get("application_url") or job["url"]
+        table.add_row(
+            job.get("company") or job.get("site") or "Unknown",
+            job.get("title") or "Untitled",
+            job.get("location") or "",
+            str(job.get("fit_score") or "—"),
+            f"{job.get('discovery_score') or 0:g}",
+            f"[link={escape(url)}]open[/link]",
+        )
+    console.print(table)
+    console.print(
+        "\n[dim]Tailor only these jobs with: "
+        "applypilot run tailor --shortlist[/dim]"
+    )
 
 
 @app.command()

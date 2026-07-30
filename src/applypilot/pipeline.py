@@ -175,11 +175,19 @@ def _run_score() -> dict:
         return {"status": f"error: {e}"}
 
 
-def _run_tailor(min_score: int = 7, validation_mode: str = "normal") -> dict:
+def _run_tailor(
+    min_score: int = 7,
+    validation_mode: str = "normal",
+    shortlist_only: bool = False,
+) -> dict:
     """Stage: Resume tailoring — generate tailored resumes for high-fit jobs."""
     try:
         from applypilot.scoring.tailor import run_tailoring
-        run_tailoring(min_score=min_score, validation_mode=validation_mode)
+        run_tailoring(
+            min_score=min_score,
+            validation_mode=validation_mode,
+            shortlist_only=shortlist_only,
+        )
         return {"status": "ok"}
     except Exception as e:
         log.error("Tailoring failed: %s", e)
@@ -377,8 +385,13 @@ def _run_stage_streaming(
 # Pipeline orchestrators
 # ---------------------------------------------------------------------------
 
-def _run_sequential(ordered: list[str], min_score: int, workers: int = 1,
-                    validation_mode: str = "normal") -> dict:
+def _run_sequential(
+    ordered: list[str],
+    min_score: int,
+    workers: int = 1,
+    validation_mode: str = "normal",
+    shortlist_only: bool = False,
+) -> dict:
     """Execute stages one at a time (original behavior)."""
     results: list[dict] = []
     errors: dict[str, str] = {}
@@ -399,6 +412,8 @@ def _run_sequential(ordered: list[str], min_score: int, workers: int = 1,
             if name in ("tailor", "cover"):
                 kwargs["min_score"] = min_score
                 kwargs["validation_mode"] = validation_mode
+            if name == "tailor":
+                kwargs["shortlist_only"] = shortlist_only
             if name in ("discover", "enrich"):
                 kwargs["workers"] = workers
             result = runner(**kwargs)
@@ -502,6 +517,7 @@ def run_pipeline(
     stream: bool = False,
     workers: int = 1,
     validation_mode: str = "normal",
+    shortlist_only: bool = False,
 ) -> dict:
     """Run pipeline stages.
 
@@ -511,6 +527,7 @@ def run_pipeline(
         dry_run: If True, preview stages without executing.
         stream: If True, run stages concurrently (streaming mode).
         workers: Number of parallel threads for discovery/enrichment stages.
+        shortlist_only: Tailor only explicitly shortlisted canonical jobs.
 
     Returns:
         Dict with keys: stages (list of result dicts), errors (dict), elapsed (float).
@@ -535,6 +552,8 @@ def run_pipeline(
     console.print(f"  Min score:  {min_score}")
     console.print(f"  Workers:    {workers}")
     console.print(f"  Validation: {validation_mode}")
+    if shortlist_only:
+        console.print("  Tailoring:  shortlist only")
     console.print(f"  Stages:     {' -> '.join(ordered)}")
 
     # Pre-run stats
@@ -551,11 +570,18 @@ def run_pipeline(
 
     # Execute
     if stream:
+        if shortlist_only:
+            raise ValueError("--shortlist is only supported in sequential mode")
         result = _run_streaming(ordered, min_score, workers=workers,
                                 validation_mode=validation_mode)
     else:
-        result = _run_sequential(ordered, min_score, workers=workers,
-                                 validation_mode=validation_mode)
+        result = _run_sequential(
+            ordered,
+            min_score,
+            workers=workers,
+            validation_mode=validation_mode,
+            shortlist_only=shortlist_only,
+        )
 
     # Summary table
     console.print(f"\n{'=' * 70}")

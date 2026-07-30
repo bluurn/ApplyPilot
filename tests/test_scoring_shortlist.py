@@ -146,6 +146,9 @@ def test_scoring_collapses_country_variants_and_shares_score(
             ),
         ],
     )
+    conn.execute(
+        "UPDATE jobs SET is_shortlisted = 1 WHERE url = 'spain'"
+    )
     conn.commit()
     resume = tmp_path / "resume.md"
     resume.write_text("resume", encoding="utf-8")
@@ -179,3 +182,9 @@ def test_scoring_collapses_country_variants_and_shares_score(
     assert conn.execute(
         "SELECT fit_score FROM jobs WHERE url = 'spain'"
     ).fetchone()[0] == 9
+    assert conn.execute(
+        "SELECT is_shortlisted FROM jobs WHERE url = 'germany'"
+    ).fetchone()[0] == 1
+    assert conn.execute(
+        "SELECT is_shortlisted FROM jobs WHERE url = 'spain'"
+    ).fetchone()[0] == 0
