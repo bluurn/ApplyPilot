@@ -150,9 +150,11 @@ def validate_json_fields(
     warnings: list[str] = []
 
     # Required keys — always checked regardless of mode
-    for key in ("title", "summary", "skills", "experience", "projects", "education"):
+    for key in ("title", "summary", "skills", "experience", "education"):
         if key not in data or not data[key]:
             errors.append(f"Missing required field: {key}")
+    if "projects" not in data or not isinstance(data["projects"], list):
+        errors.append("Missing required field: projects")
     if errors:
         return {"passed": False, "errors": errors, "warnings": warnings}
 
@@ -199,6 +201,10 @@ def validate_json_fields(
 
     # Projects: collect bullets
     if isinstance(data["projects"], list):
+        if data["projects"] and original_text and not re.search(
+            r"(?im)^\s*(selected\s+)?projects\s*:?\s*$", original_text
+        ):
+            errors.append("Projects are not grounded: original resume has no Projects section")
         for entry in data["projects"]:
             for b in entry.get("bullets", []):
                 all_text_parts.append(b)

@@ -20,7 +20,7 @@ def _profile() -> dict:
     }
 
 
-def _resume_json(skills: str = "Python") -> dict:
+def _resume_json(skills: str = "Python", projects: list | None = None) -> dict:
     return {
         "title": "Senior Backend Engineer",
         "summary": "Backend engineer building Python services.",
@@ -32,13 +32,7 @@ def _resume_json(skills: str = "Python") -> dict:
                 "bullets": ["Built Python services."],
             }
         ],
-        "projects": [
-            {
-                "header": "API Service",
-                "subtitle": "Python",
-                "bullets": ["Built an API service."],
-            }
-        ],
+        "projects": projects or [],
         "education": "Example University",
     }
 
@@ -72,6 +66,25 @@ def test_validator_rejects_unlisted_skill() -> None:
 
     assert result["passed"] is False
     assert "Fabricated skill: 'django'" in result["errors"]
+
+
+def test_validator_rejects_invented_projects_when_source_has_no_projects() -> None:
+    result = validate_json_fields(
+        _resume_json(
+            projects=[
+                {
+                    "header": "Invented Project",
+                    "subtitle": "Tech | Dates",
+                    "bullets": ["Invented work."],
+                }
+            ]
+        ),
+        _profile(),
+        original_text="Python backend engineer. Built an API Service.",
+    )
+
+    assert result["passed"] is False
+    assert any("Projects are not grounded" in error for error in result["errors"])
 
 
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:
