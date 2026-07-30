@@ -14,17 +14,14 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 from applypilot.config import RESUME_PATH, TAILORED_DIR, load_profile
 from applypilot.database import get_connection, get_jobs_by_stage
 from applypilot.llm import get_client
 from applypilot.scoring.validator import (
     BANNED_WORDS,
-    FABRICATION_WATCHLIST,
     sanitize_text,
     validate_json_fields,
-    validate_tailored_resume,
 )
 
 log = logging.getLogger(__name__)
@@ -53,12 +50,10 @@ def _build_tailor_prompt(profile: dict) -> str:
 
     # Preserved entities
     companies = resume_facts.get("preserved_companies", [])
-    projects = resume_facts.get("preserved_projects", [])
     school = resume_facts.get("preserved_school", "")
     real_metrics = resume_facts.get("real_metrics", [])
 
     companies_str = ", ".join(companies) if companies else "N/A"
-    projects_str = ", ".join(projects) if projects else "N/A"
     metrics_str = ", ".join(real_metrics) if real_metrics else "N/A"
 
     # Include ALL banned words from the validator so the LLM knows exactly
@@ -81,7 +76,8 @@ Take the base resume and job description. Return a tailored resume as a JSON obj
 ## SKILLS BOUNDARY (real skills only):
 {skills_block}
 
-You MAY add 2-3 closely related tools (Kubernetes if Docker, Terraform if AWS, Redis if PostgreSQL). No unrelated languages/frameworks.
+Every listed tool, language, and framework MUST already appear in the original
+resume. Never add a related, learnable, implied, or job-required skill.
 
 ## TAILORING RULES:
 
@@ -94,6 +90,8 @@ SKILLS: Reorder each category so the job's must-haves appear first.
 Reframe EVERY bullet for this role. Same real work, different angle. Every bullet must be reworded. Never copy verbatim.
 
 PROJECTS: Reorder by relevance. Drop irrelevant projects entirely.
+Use only projects and underlying work present in the original resume. Never
+create a new project name, project description, achievement, or metric.
 
 BULLETS: Strong verb + what you built + quantified impact. Vary verbs (Built, Designed, Implemented, Reduced, Automated, Deployed, Operated, Optimized). Most relevant first. Max 4 per section.
 
@@ -106,7 +104,7 @@ BULLETS: Strong verb + what you built + quantified impact. Vary verbs (Built, De
 - No em dashes. Use commas, periods, or hyphens.
 
 ## HARD RULES:
-- Do NOT invent work, companies, degrees, or certifications
+- Do NOT invent work, projects, skills, companies, degrees, or certifications
 - Do NOT change real numbers ({metrics_str})
 - Preserved companies: {companies_str} -- names stay as-is
 - Preserved school: {school}
@@ -163,14 +161,14 @@ ISSUES: (list any problems, or "none")
 - Reordering anything
 - Changing the title or summary completely
 
-## TOLERANCE RULE:
-The goal is to get interviews, not to be a perfect fact-checker. Allow up to 3 minor stretches per resume:
-- Adding a closely related tool the candidate could realistically know is a MINOR STRETCH, not fabrication.
-- Reframing a metric with slightly different wording is a MINOR STRETCH.
-- Adding any LEARNABLE skill given their existing stack is a MINOR STRETCH.
-- Only FAIL if there are MAJOR lies: completely invented projects, fake companies, fake degrees, wildly inflated numbers, or skills from a completely different domain.
+## GROUNDING RULE:
+Every factual claim must have a basis in the original resume. A related,
+learnable, implied, or job-required skill is still fabrication when it is not
+present in the original. Any invented project, skill, achievement, company,
+degree, date, or metric is a failure.
 
-Be strict about major lies. Be lenient about minor stretches and learnable skills. Do not fail for style, tone, or restructuring."""
+Do not fail for style, tone, or restructuring when the underlying facts remain
+grounded in the original resume."""
 
 
 # ── JSON Extraction ───────────────────────────────────────────────────────
@@ -363,7 +361,7 @@ def tailor_resume(
         max_retries:      Maximum retry attempts.
         validation_mode:  "strict", "normal", or "lenient".
                           strict  -- banned words trigger retries; judge must pass
-                          normal  -- banned words = warnings only; judge can fail on last retry
+                          normal  -- banned words = warnings only; judge must pass
                           lenient -- banned words ignored; LLM judge skipped
 
     Returns:
@@ -410,7 +408,12 @@ def tailor_resume(
             continue
 
         # Layer 1: Validate JSON fields
-        validation = validate_json_fields(data, profile, mode=validation_mode)
+        validation = validate_json_fields(
+            data,
+            profile,
+            mode=validation_mode,
+            original_text=resume_text,
+        )
         report["validator"] = validation
 
         if not validation["passed"]:
@@ -429,7 +432,7 @@ def tailor_resume(
         # Layer 2: LLM judge (catches subtle fabrication) — skipped in lenient mode
         if validation_mode == "lenient":
             report["judge"] = {"verdict": "SKIPPED", "passed": True, "issues": "none"}
-            report["status"] = "approved"
+            report["status"] = "unvalidated"
             return tailored, report
 
         judge = judge_tailored_resume(resume_text, tailored, job.get("title", ""), profile)
@@ -438,11 +441,8 @@ def tailor_resume(
         if not judge["passed"]:
             avoid_notes.append(f"Judge rejected: {judge['issues']}")
             if attempt < max_retries:
-                # In normal mode, only retry on judge failure if there are retries left
-                if validation_mode != "lenient":
-                    continue
-            # Accept best attempt on last retry (all modes) or if lenient
-            report["status"] = "approved_with_judge_warning"
+                continue
+            report["status"] = "failed_judge"
             return tailored, report
 
         # Both passed
@@ -497,7 +497,13 @@ def run_tailoring(min_score: int = 7, limit: int = 20,
     t0 = time.time()
     completed = 0
     results: list[dict] = []
-    stats: dict[str, int] = {"approved": 0, "failed_validation": 0, "failed_judge": 0, "error": 0}
+    stats: dict[str, int] = {
+        "approved": 0,
+        "failed_validation": 0,
+        "failed_judge": 0,
+        "unvalidated": 0,
+        "error": 0,
+    }
 
     for job in jobs:
         completed += 1
@@ -530,10 +536,9 @@ def run_tailoring(min_score: int = 7, limit: int = 20,
             report_path = TAILORED_DIR / f"{prefix}_REPORT.json"
             report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-            # Generate PDF for approved resumes (best-effort)
-            # "approved_with_judge_warning" is also a success — resume was generated.
+            # Generate PDF only after every required validation layer passes.
             pdf_path = None
-            if report["status"] in ("approved", "approved_with_judge_warning"):
+            if report["status"] == "approved":
                 try:
                     from applypilot.scoring.pdf import convert_to_pdf
                     pdf_path = str(convert_to_pdf(txt_path))
@@ -572,9 +577,8 @@ def run_tailoring(min_score: int = 7, limit: int = 20,
 
     # Persist to DB: increment attempt counter for ALL, save path only for approved
     now = datetime.now(timezone.utc).isoformat()
-    _success_statuses = {"approved", "approved_with_judge_warning"}
     for r in results:
-        if r["status"] in _success_statuses:
+        if r["status"] == "approved":
             conn.execute(
                 "UPDATE jobs SET tailored_resume_path=?, tailored_at=?, "
                 "tailor_attempts=COALESCE(tailor_attempts,0)+1 WHERE url=?",
@@ -589,17 +593,23 @@ def run_tailoring(min_score: int = 7, limit: int = 20,
 
     elapsed = time.time() - t0
     log.info(
-        "Tailoring done in %.1fs: %d approved, %d failed_validation, %d failed_judge, %d errors",
+        "Tailoring done in %.1fs: %d approved, %d failed_validation, "
+        "%d failed_judge, %d unvalidated, %d errors",
         elapsed,
         stats.get("approved", 0),
         stats.get("failed_validation", 0),
         stats.get("failed_judge", 0),
+        stats.get("unvalidated", 0),
         stats.get("error", 0),
     )
 
     return {
         "approved": stats.get("approved", 0),
-        "failed": stats.get("failed_validation", 0) + stats.get("failed_judge", 0),
+        "failed": (
+            stats.get("failed_validation", 0)
+            + stats.get("failed_judge", 0)
+            + stats.get("unvalidated", 0)
+        ),
         "errors": stats.get("error", 0),
         "elapsed": elapsed,
     }

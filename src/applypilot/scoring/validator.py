@@ -11,8 +11,8 @@ normal  -- banned words = warnings only; fabrication/structure = errors (default
 lenient -- banned words ignored; only fabrication and required structure checked
 """
 
-import re
 import logging
+import re
 
 log = logging.getLogger(__name__)
 
@@ -96,7 +96,12 @@ def sanitize_text(text: str) -> str:
 
 # ── JSON Field Validation ─────────────────────────────────────────────────
 
-def validate_json_fields(data: dict, profile: dict, mode: str = "normal") -> dict:
+def validate_json_fields(
+    data: dict,
+    profile: dict,
+    mode: str = "normal",
+    original_text: str = "",
+) -> dict:
     """Validate individual JSON fields from an LLM-generated tailored resume.
 
     Args:
@@ -106,6 +111,7 @@ def validate_json_fields(data: dict, profile: dict, mode: str = "normal") -> dic
                  strict  → banned words are errors (trigger retries)
                  normal  → banned words are warnings (no retry)
                  lenient → banned words ignored entirely
+        original_text: Original resume used to ground factual skill claims.
 
     Returns:
         {"passed": bool, "errors": list[str], "warnings": list[str]}
@@ -131,6 +137,17 @@ def validate_json_fields(data: dict, profile: dict, mode: str = "normal") -> dic
                 continue
             if fake in skills_text:
                 errors.append(f"Fabricated skill: '{fake}'")
+        if original_text:
+            original_lower = original_text.lower()
+            for skill in sorted(_build_skills_set(profile)):
+                if (
+                    len(skill) > 2
+                    and skill in skills_text
+                    and skill not in original_lower
+                ):
+                    errors.append(
+                        f"Skill not grounded in original resume: '{skill}'"
+                    )
 
     # Experience: preserved companies must be present (always enforced)
     resume_facts = profile.get("resume_facts", {})

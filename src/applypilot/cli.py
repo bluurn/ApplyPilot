@@ -96,8 +96,8 @@ def run(
         help=(
             "Validation strictness for tailor/cover stages. "
             "strict: banned words = errors, judge must pass. "
-            "normal: banned words = warnings only (default, recommended for Gemini free tier). "
-            "lenient: banned words ignored, LLM judge skipped (fastest, fewest API calls)."
+            "normal: banned words = warnings, judge must pass (default). "
+            "lenient: judge skipped; draft is never marked ready to apply."
         ),
     ),
     shortlist: bool = typer.Option(
