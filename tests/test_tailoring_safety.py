@@ -54,6 +54,16 @@ def test_validator_rejects_profile_skill_absent_from_original_resume() -> None:
     assert "Skill not grounded in original resume: 'elixir'" in result["errors"]
 
 
+def test_validator_accepts_common_skill_alias_from_original_resume() -> None:
+    result = validate_json_fields(
+        _resume_json("Golang, Ruby on Rails"),
+        _profile(),
+        original_text="Go backend engineer. Built Ruby on Rails services.",
+    )
+
+    assert result["passed"] is True
+
+
 def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:
     class FakeClient:
         def chat(self, *args, **kwargs) -> str:
@@ -85,6 +95,24 @@ def test_normal_tailoring_blocks_a_failed_judge(monkeypatch) -> None:
     )
 
     assert report["status"] == "failed_judge"
+
+
+def test_judge_skill_false_positive_is_reconciled(monkeypatch) -> None:
+    class FakeClient:
+        def chat(self, *args, **kwargs) -> str:
+            return 'VERDICT: FAIL\nISSUES: Added "Elixir" to Technical Skills.'
+
+    monkeypatch.setattr(tailor, "get_client", lambda: FakeClient())
+
+    result = tailor.judge_tailored_resume(
+        "Elixir/Phoenix backend engineer.",
+        "TECHNICAL SKILLS\nLanguages: Elixir",
+        "Senior Backend Engineer",
+        _profile(),
+    )
+
+    assert result["passed"] is True
+    assert "reconciled" in result["issues"]
 
 
 def test_lenient_tailoring_is_an_unvalidated_draft(monkeypatch) -> None:

@@ -70,6 +70,14 @@ FABRICATION_WATCHLIST: set[str] = {
 
 REQUIRED_SECTIONS: set[str] = {"SUMMARY", "TECHNICAL SKILLS", "EXPERIENCE", "PROJECTS", "EDUCATION"}
 
+SKILL_ALIASES: dict[str, tuple[str, ...]] = {
+    "go": ("go", "golang"),
+    "golang": ("go", "golang"),
+    "ruby": ("ruby",),
+    "rails": ("rails", "ruby on rails"),
+    "ruby on rails": ("rails", "ruby on rails"),
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -83,6 +91,19 @@ def _build_skills_set(profile: dict) -> set[str]:
         elif isinstance(category, set):
             allowed.update(s.lower().strip() for s in category)
     return allowed
+
+
+def skill_is_grounded(skill: str, original_text: str) -> bool:
+    """Return whether a skill or its known spelling is present in the resume."""
+    original_lower = original_text.lower()
+    candidates = SKILL_ALIASES.get(skill.lower().strip(), (skill,))
+    return any(
+        re.search(
+            r"(?<![a-z0-9])" + re.escape(candidate.lower()) + r"(?![a-z0-9])",
+            original_lower,
+        )
+        for candidate in candidates
+    )
 
 
 def sanitize_text(text: str) -> str:
@@ -135,15 +156,16 @@ def validate_json_fields(
         for fake in FABRICATION_WATCHLIST:
             if len(fake) <= 2:
                 continue
-            if fake in skills_text:
+            if fake in skills_text and (
+                not original_text or not skill_is_grounded(fake, original_text)
+            ):
                 errors.append(f"Fabricated skill: '{fake}'")
         if original_text:
-            original_lower = original_text.lower()
             for skill in sorted(_build_skills_set(profile)):
                 if (
                     len(skill) > 2
                     and skill in skills_text
-                    and skill not in original_lower
+                    and not skill_is_grounded(skill, original_text)
                 ):
                     errors.append(
                         f"Skill not grounded in original resume: '{skill}'"
