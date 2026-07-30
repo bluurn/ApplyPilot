@@ -3,15 +3,70 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlsplit
+
+_JOB_ID_QUERY_KEYS = (
+    "gh_jid",
+    "job_id",
+    "jobid",
+    "jobId",
+    "lever_job_id",
+)
+
+
+def _url_job_ids(url: str) -> set[tuple[str, str, str]]:
+    """Return stable, host-scoped job identifiers embedded in a URL."""
+    try:
+        parsed = urlsplit(url.strip())
+    except ValueError:
+        return set()
+    host = (parsed.hostname or "").lower()
+    host = host.removeprefix("www.")
+    if not host:
+        return set()
+
+    query = parse_qs(parsed.query)
+    identifiers = {
+        (host, key.lower(), value)
+        for key in _JOB_ID_QUERY_KEYS
+        for value in query.get(key, [])
+        if value
+    }
+
+    # Many career sites put the same stable numeric ID in the path while
+    # changing or expanding the human-readable path around it.
+    identifiers.update(
+        (host, "path_id", segment)
+        for segment in parsed.path.split("/")
+        if segment.isdigit() and len(segment) >= 5
+    )
+    return identifiers
 
 
 def resolve_job(conn: sqlite3.Connection, url: str) -> dict | None:
     """Resolve a source/application/duplicate URL to its canonical job."""
+    url = url.strip()
     row = conn.execute(
         "SELECT * FROM jobs WHERE url = ? OR application_url = ? LIMIT 1",
         (url, url),
     ).fetchone()
+    if row is None:
+        requested_ids = _url_job_ids(url)
+        if requested_ids:
+            for candidate in conn.execute(
+                "SELECT * FROM jobs WHERE url LIKE 'http%' "
+                "OR application_url LIKE 'http%'"
+            ).fetchall():
+                candidate_job = dict(candidate)
+                candidate_ids = _url_job_ids(candidate_job["url"])
+                if candidate_job.get("application_url"):
+                    candidate_ids.update(
+                        _url_job_ids(candidate_job["application_url"])
+                    )
+                if requested_ids & candidate_ids:
+                    row = candidate
+                    break
     if row is None:
         return None
     job = dict(row)
@@ -34,7 +89,7 @@ def add_job(conn: sqlite3.Connection, url: str) -> tuple[str, dict | None]:
         return "ineligible", job
     if job.get("is_shortlisted"):
         return "already_added", job
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     conn.execute(
         "UPDATE jobs SET is_shortlisted = 1, shortlisted_at = ? WHERE url = ?",
         (now, job["url"]),

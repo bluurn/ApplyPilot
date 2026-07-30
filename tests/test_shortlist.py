@@ -83,6 +83,42 @@ def test_shortlist_resolves_application_and_duplicate_urls(tmp_path) -> None:
     assert list_jobs(conn) == []
 
 
+def test_shortlist_resolves_public_career_url_by_stable_job_id(tmp_path) -> None:
+    conn = init_db(tmp_path / "jobs.db")
+    conn.execute(
+        """
+        INSERT INTO jobs (
+            url, application_url, title, company, location, full_description,
+            fit_score, discovery_score, eligibility_allowed
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "https://sumup.com/careers/positions/8576657002?gh_jid=8576657002",
+            "https://sumup.com/careers/positions/8576657002?gh_jid=8576657002",
+            "Senior Backend Engineer - Golang",
+            "SumUp",
+            "Berlin, Germany",
+            "Build Go services.",
+            8,
+            7.5,
+            1,
+        ),
+    )
+    conn.commit()
+
+    status, job = add_job(
+        conn,
+        "https://www.sumup.com/careers/positions/berlin-germany/engineering/"
+        "senior-backend-engineer-golang/8576657002/?gh_jid=8576657002",
+    )
+
+    assert status == "added"
+    assert job is not None
+    assert job["url"] == (
+        "https://sumup.com/careers/positions/8576657002?gh_jid=8576657002"
+    )
+
+
 def test_shortlist_rejects_ineligible_and_filters_tailoring(tmp_path) -> None:
     conn = init_db(tmp_path / "jobs.db")
     _seed(conn)
