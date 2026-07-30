@@ -40,3 +40,7 @@ boards:
   celonis:
     name: "Celonis"
     token: "celonis"
+
+  canonical:
+    name: "Canonical"
+    token: "canonical"

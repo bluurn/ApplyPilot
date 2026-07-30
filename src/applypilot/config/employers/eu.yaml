@@ -2,6 +2,12 @@
 # Each portal was verified against an active European listing.
 
 employers:
+  redhat:
+    name: "Red Hat"
+    tenant: "redhat"
+    site_id: "jobs"
+    base_url: "https://redhat.wd5.myworkdayjobs.com"
+
   gea:
     name: "GEA"
     tenant: "gea"

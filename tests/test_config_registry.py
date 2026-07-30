@@ -102,7 +102,15 @@ def test_packaged_eu_profile_includes_base_and_europe_employers() -> None:
         "blackrock",
         "rakuten_kobo",
         "fidelity",
+        "redhat",
     } <= employers.keys()
+
+    assert employers["redhat"] == {
+        "name": "Red Hat",
+        "tenant": "redhat",
+        "site_id": "jobs",
+        "base_url": "https://redhat.wd5.myworkdayjobs.com",
+    }
 
 
 def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
@@ -123,6 +131,7 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
         "sumup",
         "n26",
         "celonis",
+        "canonical",
     } <= result["boards"].keys()
 
 
