@@ -30,6 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.1"]
+baml = ["baml-py>=0.76.2"]
 
 [project.scripts]
 applypilot = "applypilot.cli:app"
