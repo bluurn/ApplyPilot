@@ -17,7 +17,6 @@ import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
@@ -25,6 +24,7 @@ from playwright.sync_api import sync_playwright
 from applypilot import config
 from applypilot.database import init_db
 from applypilot.llm import get_client
+from applypilot.enrichment.urls import resolve_url
 
 log = logging.getLogger(__name__)
 
@@ -46,39 +46,6 @@ def set_proxy(proxy_str: str | None):
 
 
 # -- URL resolution ----------------------------------------------------------
-
-def _load_base_urls() -> dict[str, str | None]:
-    """Load site base URLs from config/sites.yaml."""
-    from applypilot.config import load_base_urls
-    return load_base_urls()
-
-
-def resolve_url(raw_url: str, site: str) -> str | None:
-    """Resolve a stored URL to an absolute URL."""
-    if not raw_url:
-        return None
-
-    if raw_url.startswith("http://") or raw_url.startswith("https://"):
-        return raw_url
-
-    if site == "WelcomeToTheJungle":
-        return None
-
-    if site == "Randstad Canada" and "/" not in raw_url:
-        return f"https://www.randstad.ca/jobs/search/{raw_url}"
-
-    if site == "4DayWeek" and raw_url in ("/", "/jobs"):
-        return None
-
-    base = _load_base_urls().get(site)
-    if not base:
-        return None
-
-    if ";jsessionid=" in raw_url:
-        raw_url = raw_url.split(";jsessionid=")[0]
-
-    return urljoin(base, raw_url)
-
 
 def resolve_all_urls(conn: sqlite3.Connection) -> dict:
     """Resolve all relative URLs in the database. Returns stats."""

@@ -48,6 +48,8 @@ base_urls:
   "Arc.dev": "https://arc.dev"
   "Himalayas": "https://himalayas.app"
   "Techstars Jobs": "https://www.techstars.com"
+  "Working Nomads": "https://www.workingnomads.com/jobs/"
+  "4DayWeek": "https://4dayweek.io"
 
 sites:
   # ── Searchable sites (URL includes query + location params) ──────────
