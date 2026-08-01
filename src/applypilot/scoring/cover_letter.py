@@ -37,8 +37,9 @@ def _build_cover_letter_prompt(profile: dict) -> str:
     boundary = profile.get("skills_boundary", {})
     resume_facts = profile.get("resume_facts", {})
 
-    # Preferred name for the sign-off (falls back to full name)
-    sign_off_name = personal.get("preferred_name") or personal.get("full_name", "")
+    # Use the legal/full name for application documents. A profile nickname is
+    # useful for handles and URLs, but should never leak into a signature.
+    sign_off_name = personal.get("full_name") or personal.get("preferred_name", "")
 
     # Flatten all allowed skills
     all_skills: list[str] = []
@@ -69,7 +70,7 @@ def _build_cover_letter_prompt(profile: dict) -> str:
 
 STRUCTURE: 3 short paragraphs. Under 250 words. Every sentence must earn its place.
 
-PARAGRAPH 1 (2-3 sentences): Open with a specific thing YOU built that solves THEIR problem. Not "I'm excited about this role." Not "This role aligns with my experience." Start with the work.
+PARAGRAPH 1 (3-4 sentences): After the greeting, briefly introduce yourself and name the role you are applying for. Add one specific reason the company's product or problem is relevant to your background, then connect it to a concrete thing YOU built that solves THEIR problem. Avoid generic openings such as "I'm excited about this role" or "This role aligns with my experience."
 
 PARAGRAPH 2 (3-4 sentences): Pick 2 achievements from the resume that are MOST relevant to THIS job. Use numbers. Frame as solving their problem, not listing your accomplishments.{projects_hint}{metrics_hint}
 
@@ -94,10 +95,12 @@ FABRICATION = INSTANT REJECTION:
 The candidate's real tools are ONLY: {skills_str}.
 Do NOT mention ANY tool not in this list. If the job asks for tools not listed, talk about the work you did, not the tools.
 
-Sign off: just "{sign_off_name}"
+Close with exactly these two lines, after a blank line:
+Best regards,
+{sign_off_name}
 
 Output ONLY the letter text. No subject lines. No "Here is the cover letter:" preamble. No notes after the sign-off.
-Start DIRECTLY with "Dear Hiring Manager," and end with the name."""
+Start DIRECTLY with "Dear Hiring Manager," and end with the full name."""
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -113,6 +116,31 @@ def _strip_preamble(text: str) -> str:
     if dear_idx > 0:
         return text[dear_idx:]
     return text
+
+
+def _ensure_signoff(text: str, profile: dict) -> str:
+    """Normalize the closing so every letter uses the same professional sign-off."""
+    personal = profile.get("personal", {})
+    full_name = personal.get("full_name") or personal.get("preferred_name", "")
+    if not full_name:
+        return text.rstrip()
+
+    lines = text.rstrip().splitlines()
+    if lines and lines[-1].strip().casefold() in {
+        full_name.casefold(),
+        str(personal.get("preferred_name", "")).casefold(),
+    }:
+        lines.pop()
+    if lines and lines[-1].strip().rstrip(",:").casefold() in {
+        "best regards",
+        "kind regards",
+        "regards",
+        "sincerely",
+        "yours sincerely",
+    }:
+        lines.pop()
+    body = "\n".join(lines).rstrip()
+    return f"{body}\n\nBest regards,\n{full_name}"
 
 
 # ── Core Generation ──────────────────────────────────────────────────────
@@ -168,6 +196,7 @@ def generate_cover_letter(
         letter = client.chat(messages, max_tokens=1024, temperature=0.7)
         letter = sanitize_text(letter)  # auto-fix em dashes, smart quotes
         letter = _strip_preamble(letter)  # remove any "Here is the letter:" prefix
+        letter = _ensure_signoff(letter, profile)
 
         validation = validate_cover_letter(letter, mode=validation_mode)
         if validation["passed"]:

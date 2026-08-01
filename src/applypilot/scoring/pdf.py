@@ -5,6 +5,7 @@ and exports to PDF using headless Chromium via Playwright.
 """
 
 import logging
+from html import escape
 from pathlib import Path
 
 from applypilot.config import TAILORED_DIR
@@ -331,6 +332,39 @@ li {{
 </html>"""
 
 
+def build_cover_letter_html(text: str) -> str:
+    """Build a simple letter layout for plain-text cover letters.
+
+    Cover letters are prose, not structured resumes. Reusing the resume
+    template made every paragraph inherit the centered header styling and
+    rendered the first paragraph as a faux header with a bottom rule.
+    """
+    blocks = [block.strip() for block in text.strip().split("\n\n") if block.strip()]
+    paragraphs = "\n".join(
+        f'<p>{escape(block).replace(chr(10), "<br>")}</p>' for block in blocks
+    )
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@page {{ size: letter; margin: 0.8in 0.85in; }}
+* {{ box-sizing: border-box; }}
+body {{
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+    text-align: left;
+}}
+.letter {{ max-width: 7in; margin: 0 auto; }}
+p {{ margin: 0 0 16pt; text-align: left; }}
+</style>
+</head>
+<body><main class="letter">{paragraphs}</main></body>
+</html>"""
+
+
 # ── PDF Renderer ─────────────────────────────────────────────────────────
 
 def render_pdf(html: str, output_path: str) -> None:
@@ -373,8 +407,11 @@ def convert_to_pdf(
     """
     text_path = Path(text_path)
     text = text_path.read_text(encoding="utf-8")
-    resume = parse_resume(text)
-    html = build_html(resume)
+    if text_path.name.endswith("_CL.txt"):
+        html = build_cover_letter_html(text)
+    else:
+        resume = parse_resume(text)
+        html = build_html(resume)
 
     if html_only:
         out = output_path or text_path.with_suffix(".html")
