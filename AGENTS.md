@@ -184,6 +184,16 @@ Requirements:
 - BAML must not replace deterministic source grounding or silently broaden the
   allowed resume facts.
 
+### Future TODO: Claude provider unification
+
+- Evaluate using Anthropic/Claude as the common LLM provider for enrichment,
+  scoring, tailoring, and cover letters to reduce provider and dependency
+  footprint.
+- Keep provider/model selection configurable and compare cost, latency,
+  structured-output reliability, and rate limits before migrating defaults.
+- Keep the Claude Code CLI browser agent separate from the batch LLM provider
+  unless a direct API path proves reliable and economical.
+
 ### Watchlist
 
 Support a high-priority company watchlist that is checked before general discovery.

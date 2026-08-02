@@ -126,6 +126,17 @@ def setup_worker_profile(worker_id: int) -> Path:
     if source is None:
         source = config.get_chrome_user_data()
 
+    if not source.exists():
+        # A clean Nix/Chromium installation may not have a Google Chrome
+        # profile at all. Chrome can create an empty user-data directory on
+        # first launch, so do not fail before the browser starts.
+        logger.info(
+            "[worker-%d] No existing Chrome profile at %s; starting clean",
+            worker_id, source,
+        )
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        return profile_dir
+
     logger.info("[worker-%d] Copying Chrome profile from %s (first time setup)...",
                 worker_id, source.name)
     profile_dir.mkdir(parents=True, exist_ok=True)
