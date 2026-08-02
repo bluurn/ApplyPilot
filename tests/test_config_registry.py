@@ -132,6 +132,18 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
         "n26",
         "celonis",
         "canonical",
+        "wolt",
+        "miro",
+        "personio",
+        "aiven",
+        "remote",
+        "mongodb",
+        "confluent",
+        "hashicorp",
+        "netlify",
+        "fastly",
+        "intercom",
+        "criteo",
     } <= result["boards"].keys()
 
 
@@ -151,6 +163,16 @@ def test_packaged_eu_profile_includes_lever_sites() -> None:
         "palantir",
         "kraken",
         "qonto",
+        "algolia",
+        "doctolib",
+        "contentsquare",
+        "aircall",
+        "back_market",
+        "payfit",
+        "klarna",
+        "spendesk",
+        "dataiku",
+        "leboncoin",
     } <= result["sites"].keys()
 
 
@@ -172,6 +194,12 @@ def test_packaged_eu_profile_includes_ashby_boards() -> None:
         "n8n",
         "temporal",
         "pennylane",
+        "dbt_labs",
+        "retool",
+        "prefect",
+        "dagster",
+        "modal",
+        "turso",
     } <= result["boards"].keys()
 
 

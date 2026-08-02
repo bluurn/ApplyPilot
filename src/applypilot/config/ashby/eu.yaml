@@ -92,3 +92,27 @@ boards:
   granola:
     name: "Granola"
     board: "Granola"
+
+  dbt_labs:
+    name: "dbt Labs"
+    board: "dbt-labs"
+
+  retool:
+    name: "Retool"
+    board: "Retool"
+
+  prefect:
+    name: "Prefect"
+    board: "PrefectIO"
+
+  dagster:
+    name: "Dagster"
+    board: "elementl"
+
+  modal:
+    name: "Modal"
+    board: "modal-labs"
+
+  turso:
+    name: "Turso"
+    board: "turso"

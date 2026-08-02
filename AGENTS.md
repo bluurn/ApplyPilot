@@ -172,22 +172,18 @@ After:
 
 When a request is ambiguous, choose the option that most directly improves the owner's job discovery quality while keeping behavior configurable.
 
-## Immediate Next Task
-
-Add first-class discovery coverage for Canonical and Red Hat.
-
-Requirements:
-1. Identify stable public job feeds or APIs for each company.
-2. Integrate through the appropriate registry or an isolated first-class source (not fragile page scraping where avoidable).
-3. Preserve shared Europe/remote eligibility filtering and ranking.
-4. Report source failures without stopping other discovery.
-5. Make watchlist coverage accurately report both companies as configured.
-6. Add focused parsing, filtering, failure-isolation, and persistence tests.
-
 ## Discovery Roadmap
 
-- Expand Workday employers to roughly 100–300 useful companies.
-- Expand Greenhouse, Lever, and Ashby coverage.
+Current coverage (eu profile, all verified healthy):
+- Greenhouse: 24 boards (was 11; added Wolt, Miro, Personio, Aiven, Remote, MongoDB, Confluent, HashiCorp, Netlify, Fastly, Intercom, Criteo)
+- Lever: 26 sites (was 15; added Algolia, Doctolib, Contentsquare, Aircall, Back Market, PayFit, Klarna, Spendesk, Dataiku, leboncoin)
+- Ashby: 29 boards (was 23; added dbt Labs, Retool, Prefect, Dagster, Modal, Turso)
+- Workday: 45 employers (unchanged; Nokia, Arm, ASML, Ericsson, IBM, ThoughtWorks, Capgemini all returned 4xx — CXS endpoint restricted or site_id/tenant unknown)
+
+Note: Nokia, Arm, Ericsson, ASML, IBM, ThoughtWorks, Capgemini could not be added to Workday — their CXS endpoints returned 422/404/401. To add them, the correct site_id must be found by inspecting actual Workday job-posting URLs for each company.
+
+Next:
+- Continue expanding Workday toward 100+ employers.
 - Improve Europe-relevant JobSpy coverage.
 
 ### Watchlist

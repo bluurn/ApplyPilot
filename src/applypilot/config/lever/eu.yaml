@@ -75,3 +75,53 @@ sites:
     name: "Bigblue"
     site: "bigblue"
     instance: "global"
+
+  algolia:
+    name: "Algolia"
+    site: "algolia"
+    instance: "global"
+
+  doctolib:
+    name: "Doctolib"
+    site: "doctolib"
+    instance: "global"
+
+  contentsquare:
+    name: "Contentsquare"
+    site: "contentsquare"
+    instance: "global"
+
+  aircall:
+    name: "Aircall"
+    site: "aircall"
+    instance: "global"
+
+  back_market:
+    name: "Back Market"
+    site: "backmarket"
+    instance: "global"
+
+  payfit:
+    name: "PayFit"
+    site: "payfit"
+    instance: "global"
+
+  klarna:
+    name: "Klarna"
+    site: "klarna"
+    instance: "global"
+
+  spendesk:
+    name: "Spendesk"
+    site: "spendesk"
+    instance: "global"
+
+  dataiku:
+    name: "Dataiku"
+    site: "dataiku"
+    instance: "global"
+
+  leboncoin:
+    name: "leboncoin"
+    site: "leboncoin"
+    instance: "global"

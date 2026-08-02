@@ -44,3 +44,51 @@ boards:
   canonical:
     name: "Canonical"
     token: "canonical"
+
+  wolt:
+    name: "Wolt"
+    token: "wolt"
+
+  miro:
+    name: "Miro"
+    token: "miro"
+
+  personio:
+    name: "Personio"
+    token: "personio"
+
+  aiven:
+    name: "Aiven"
+    token: "aiven"
+
+  remote:
+    name: "Remote"
+    token: "remote"
+
+  mongodb:
+    name: "MongoDB"
+    token: "mongodb"
+
+  confluent:
+    name: "Confluent"
+    token: "confluent"
+
+  hashicorp:
+    name: "HashiCorp"
+    token: "hashicorp"
+
+  netlify:
+    name: "Netlify"
+    token: "netlify"
+
+  fastly:
+    name: "Fastly"
+    token: "fastly"
+
+  intercom:
+    name: "Intercom"
+    token: "intercom"
+
+  criteo:
+    name: "Criteo"
+    token: "criteo"
