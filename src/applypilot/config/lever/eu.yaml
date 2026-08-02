@@ -155,3 +155,48 @@ sites:
     name: "ManoMano"
     site: "manomano"
     instance: "global"
+
+  wise:
+    name: "Wise"
+    site: "wise"
+    instance: "global"
+
+  deliveroo:
+    name: "Deliveroo"
+    site: "deliveroo"
+    instance: "global"
+
+  typeform:
+    name: "Typeform"
+    site: "typeform"
+    instance: "global"
+
+  malt:
+    name: "Malt"
+    site: "malt"
+    instance: "global"
+
+  monzo:
+    name: "Monzo"
+    site: "monzo"
+    instance: "global"
+
+  bitpanda:
+    name: "Bitpanda"
+    site: "bitpanda"
+    instance: "global"
+
+  gorillas:
+    name: "Gorillas"
+    site: "gorillas"
+    instance: "global"
+
+  remote_native:
+    name: "Remote Native"
+    site: "remotenative"
+    instance: "global"
+
+  cleo:
+    name: "Cleo"
+    site: "meetcleo"
+    instance: "global"

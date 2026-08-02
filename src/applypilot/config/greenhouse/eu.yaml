@@ -124,3 +124,51 @@ boards:
   checkout_com:
     name: "Checkout.com"
     token: "checkoutdotcom"
+
+  stripe:
+    name: "Stripe"
+    token: "stripe"
+
+  twilio:
+    name: "Twilio"
+    token: "twilio"
+
+  discord:
+    name: "Discord"
+    token: "discord"
+
+  coinbase:
+    name: "Coinbase"
+    token: "coinbase"
+
+  plaid:
+    name: "Plaid"
+    token: "plaid"
+
+  grammarly:
+    name: "Grammarly"
+    token: "grammarly"
+
+  airtable:
+    name: "Airtable"
+    token: "airtable"
+
+  amplitude:
+    name: "Amplitude"
+    token: "amplitude"
+
+  mixpanel:
+    name: "Mixpanel"
+    token: "mixpanel"
+
+  mapbox:
+    name: "Mapbox"
+    token: "mapbox"
+
+  postman:
+    name: "Postman"
+    token: "postman"
+
+  benchling:
+    name: "Benchling"
+    token: "benchling"

@@ -152,6 +152,18 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
         "brex",
         "docker",
         "checkout_com",
+        "stripe",
+        "twilio",
+        "discord",
+        "coinbase",
+        "plaid",
+        "grammarly",
+        "airtable",
+        "amplitude",
+        "mixpanel",
+        "mapbox",
+        "postman",
+        "benchling",
     } <= result["boards"].keys()
 
 
@@ -187,6 +199,12 @@ def test_packaged_eu_profile_includes_lever_sites() -> None:
         "blablacar",
         "alan",
         "manoMano",
+        "wise",
+        "deliveroo",
+        "typeform",
+        "malt",
+        "monzo",
+        "bitpanda",
     } <= result["sites"].keys()
 
 
