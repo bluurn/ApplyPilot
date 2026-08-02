@@ -368,4 +368,279 @@ employers:
     site_id: "jobs"
     base_url: "https://rabobank.wd3.myworkdayjobs.com"
 
+  ntt_limited:
+    name: "NTT Limited"
+    tenant: "nttlimited"
+    site_id: "NTT_Careers"
+    base_url: "https://nttlimited.wd3.myworkdayjobs.com"
+
+  essity:
+    name: "Essity"
+    tenant: "essity"
+    site_id: "Job_opportunities"
+    base_url: "https://essity.wd3.myworkdayjobs.com"
+
+  novartis:
+    name: "Novartis"
+    tenant: "novartis"
+    site_id: "Novartis_Careers"
+    base_url: "https://novartis.wd3.myworkdayjobs.com"
+
+  sandoz:
+    name: "Sandoz"
+    tenant: "sandoz"
+    site_id: "Sandoz_Careers"
+    base_url: "https://sandoz.wd103.myworkdayjobs.com"
+
+  roche:
+    name: "Roche"
+    tenant: "roche"
+    site_id: "roche-ext"
+    base_url: "https://roche.wd3.myworkdayjobs.com"
+
+  gsk:
+    name: "GSK"
+    tenant: "gsk"
+    site_id: "GSKCareers"
+    base_url: "https://gsk.wd5.myworkdayjobs.com"
+
+  fresenius_medical_care:
+    name: "Fresenius Medical Care"
+    tenant: "freseniusmedicalcare"
+    site_id: "fme"
+    base_url: "https://freseniusmedicalcare.wd3.myworkdayjobs.com"
+
+  danaher:
+    name: "Danaher"
+    tenant: "danaher"
+    site_id: "DanaherJobs"
+    base_url: "https://danaher.wd1.myworkdayjobs.com"
+
+  spgi:
+    name: "S&P Global"
+    tenant: "spgi"
+    site_id: "SPGI_Careers"
+    base_url: "https://spgi.wd5.myworkdayjobs.com"
+
+  agilent:
+    name: "Agilent Technologies"
+    tenant: "agilent"
+    site_id: "Agilent_Careers"
+    base_url: "https://agilent.wd5.myworkdayjobs.com"
+
+  nvidia:
+    name: "NVIDIA"
+    tenant: "nvidia"
+    site_id: "NVIDIAExternalCareerSite"
+    base_url: "https://nvidia.wd5.myworkdayjobs.com"
+
+  nasdaq:
+    name: "Nasdaq"
+    tenant: "nasdaq"
+    site_id: "Global_External_Site"
+    base_url: "https://nasdaq.wd1.myworkdayjobs.com"
+
+  airbus:
+    name: "Airbus"
+    tenant: "ag"
+    site_id: "Airbus"
+    base_url: "https://ag.wd3.myworkdayjobs.com"
+
+  abinbev:
+    name: "AB InBev"
+    tenant: "abinbev"
+    site_id: "USA"
+    base_url: "https://abinbev.wd1.myworkdayjobs.com"
+
+  bms:
+    name: "Bristol Myers Squibb"
+    tenant: "bristolmyerssquibb"
+    site_id: "BMS"
+    base_url: "https://bristolmyerssquibb.wd5.myworkdayjobs.com"
+
+  aveva:
+    name: "AVEVA"
+    tenant: "aveva"
+    site_id: "AVEVA_careers"
+    base_url: "https://aveva.wd3.myworkdayjobs.com"
+
+  stellantis:
+    name: "Stellantis"
+    tenant: "stellantis"
+    site_id: "External_Career_Site_ID01"
+    base_url: "https://stellantis.wd3.myworkdayjobs.com"
+
+  valeo:
+    name: "Valeo"
+    tenant: "valeo"
+    site_id: "valeo_jobs"
+    base_url: "https://valeo.wd3.myworkdayjobs.com"
+
+  intel:
+    name: "Intel"
+    tenant: "intel"
+    site_id: "External"
+    base_url: "https://intel.wd1.myworkdayjobs.com"
+
+  equinix:
+    name: "Equinix"
+    tenant: "equinix"
+    site_id: "External"
+    base_url: "https://equinix.wd1.myworkdayjobs.com"
+
+  pwc:
+    name: "PwC"
+    tenant: "pwc"
+    site_id: "Global_Experienced_Careers"
+    base_url: "https://pwc.wd3.myworkdayjobs.com"
+
+  unilever:
+    name: "Unilever"
+    tenant: "unilever"
+    site_id: "Unilever_Experienced_Professionals"
+    base_url: "https://unilever.wd3.myworkdayjobs.com"
+
+  pg:
+    name: "Procter & Gamble"
+    tenant: "pg"
+    site_id: "1000"
+    base_url: "https://pg.wd5.myworkdayjobs.com"
+
+  threem:
+    name: "3M"
+    tenant: "3m"
+    site_id: "Search"
+    base_url: "https://3m.wd1.myworkdayjobs.com"
+
+  kion:
+    name: "KION Group"
+    tenant: "kiongroup"
+    site_id: "KIONGroup"
+    base_url: "https://kiongroup.wd3.myworkdayjobs.com"
+
+  covestro:
+    name: "Covestro"
+    tenant: "covestro"
+    site_id: "cov_external"
+    base_url: "https://covestro.wd3.myworkdayjobs.com"
+
+  evonik:
+    name: "Evonik"
+    tenant: "evonik"
+    site_id: "External_Careers"
+    base_url: "https://evonik.wd3.myworkdayjobs.com"
+
+  zebra:
+    name: "Zebra Technologies"
+    tenant: "zebra"
+    site_id: "Zebra_careers"
+    base_url: "https://zebra.wd501.myworkdayjobs.com"
+
+  gehc:
+    name: "GE HealthCare"
+    tenant: "gehc"
+    site_id: "GEHC_ExternalSite"
+    base_url: "https://gehc.wd5.myworkdayjobs.com"
+
+  gevernova:
+    name: "GE Vernova"
+    tenant: "gevernova"
+    site_id: "Vernova_ExternalSite"
+    base_url: "https://gevernova.wd5.myworkdayjobs.com"
+
+  rtx:
+    name: "RTX (Raytheon Technologies)"
+    tenant: "globalhr"
+    site_id: "REC_RTX_Ext_Gateway"
+    base_url: "https://globalhr.wd5.myworkdayjobs.com"
+
+  leonardo:
+    name: "Leonardo"
+    tenant: "leonardocompany"
+    site_id: "LeonardoCareerSite"
+    base_url: "https://leonardocompany.wd3.myworkdayjobs.com"
+
+  nexperia:
+    name: "Nexperia"
+    tenant: "nexperia"
+    site_id: "careers"
+    base_url: "https://nexperia.wd3.myworkdayjobs.com"
+
+  barclays:
+    name: "Barclays"
+    tenant: "barclays"
+    site_id: "External_Career_Site_Barclays"
+    base_url: "https://barclays.wd3.myworkdayjobs.com"
+
+  cisco:
+    name: "Cisco"
+    tenant: "cisco"
+    site_id: "Cisco_Careers"
+    base_url: "https://cisco.wd5.myworkdayjobs.com"
+
+  qiagen:
+    name: "QIAGEN"
+    tenant: "qiagen"
+    site_id: "QIAGEN"
+    base_url: "https://qiagen.wd502.myworkdayjobs.com"
+
+  broadcom:
+    name: "Broadcom"
+    tenant: "broadcom"
+    site_id: "External_Career"
+    base_url: "https://broadcom.wd1.myworkdayjobs.com"
+
+  workday_inc:
+    name: "Workday"
+    tenant: "workday"
+    site_id: "Workday"
+    base_url: "https://workday.wd5.myworkdayjobs.com"
+
+  hpe:
+    name: "Hewlett Packard Enterprise"
+    tenant: "hpe"
+    site_id: "ACJobSite"
+    base_url: "https://hpe.wd5.myworkdayjobs.com"
+
+  cadence:
+    name: "Cadence"
+    tenant: "cadence"
+    site_id: "External_Careers"
+    base_url: "https://cadence.wd1.myworkdayjobs.com"
+
+  ptc:
+    name: "PTC"
+    tenant: "ptc"
+    site_id: "PTC"
+    base_url: "https://ptc.wd1.myworkdayjobs.com"
+
+  marvell:
+    name: "Marvell Technology"
+    tenant: "marvell"
+    site_id: "MarvellCareers"
+    base_url: "https://marvell.wd1.myworkdayjobs.com"
+
+  shell:
+    name: "Shell"
+    tenant: "shell"
+    site_id: "ShellCareers"
+    base_url: "https://shell.wd3.myworkdayjobs.com"
+
+  kone:
+    name: "KONE"
+    tenant: "kone"
+    site_id: "Careers"
+    base_url: "https://kone.wd3.myworkdayjobs.com"
+
+  lonza:
+    name: "Lonza"
+    tenant: "lonza"
+    site_id: "Lonza_Careers"
+    base_url: "https://lonza.wd3.myworkdayjobs.com"
+
+  maersk:
+    name: "Maersk"
+    tenant: "maersk"
+    site_id: "Maersk_Careers"
+    base_url: "https://maersk.wd3.myworkdayjobs.com"
 

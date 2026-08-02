@@ -238,7 +238,7 @@ def _scrape_sources(
 
     for site in sites:
         location = gd_location if site == "glassdoor" else search["location"]
-        country = defaults.get("country_indeed", "usa")
+        country = search.get("country_indeed") or defaults.get("country_indeed", "usa")
         # JobSpy's LinkedIn adapter tries to infer a single country from
         # "Europe" and can choose unsupported values such as Moldova. Use its
         # supported worldwide mode and let our shared eligibility filter
@@ -497,6 +497,7 @@ def _full_crawl(
                 "location": loc["location"],
                 "remote": loc.get("remote", False),
                 "tier": q.get("tier", 0),
+                "country_indeed": loc.get("country_indeed"),
             })
 
     proxy_config = parse_proxy(proxy) if proxy else None
