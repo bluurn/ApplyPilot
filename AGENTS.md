@@ -175,8 +175,8 @@ When a request is ambiguous, choose the option that most directly improves the o
 ## Discovery Roadmap
 
 Current coverage (eu profile, all verified healthy):
-- Greenhouse: 46 boards (was 11; added Wolt, Miro, Personio, Aiven, Remote, MongoDB, Confluent, HashiCorp, Netlify, Fastly, Intercom, Criteo, Sentry, Mozilla, HelloFresh, Delivery Hero, Figma, Brex, Docker, Checkout.com, Stripe, Twilio, Discord, Coinbase, Plaid, Grammarly, Airtable, Amplitude, Mixpanel, Mapbox, Postman, Benchling, and more)
-- Lever: 41 sites (was 15; added Algolia, Doctolib, Contentsquare, Aircall, Back Market, PayFit, Klarna, Spendesk, Dataiku, leboncoin, Deezer, Mirakl, Swile, BlaBlaCar, Alan, ManoMano, Wise, Deliveroo, Typeform, Malt, Monzo, Bitpanda, Gorillas, Cleo, and more)
+- Greenhouse: 29 boards, all live-verified (added Wolt, Remote, MongoDB, Netlify, Fastly, Intercom, Mozilla, HelloFresh, Figma, Brex, Stripe, Twilio, Discord, Coinbase, Airtable, Amplitude, Mixpanel, Postman; 14 candidates removed — migrated off Greenhouse)
+- Lever: 20 sites, all live-verified (added Contentsquare, Aircall, Swile, BlaBlaCar, Malt; 20 candidates removed — migrated off Lever)
 - Ashby: 35 boards (was 23; round 1: dbt Labs, Retool, Prefect, Dagster, Modal, Turso; round 2: Resend, Cal.com, Baseten, Novu, Inngest, Apify)
 - Workday: 45 employers (no new additions — all candidates returned 422/401; Workday site_ids cannot be guessed reliably without seeing an actual job posting URL)
 

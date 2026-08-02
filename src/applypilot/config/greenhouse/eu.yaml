@@ -49,18 +49,6 @@ boards:
     name: "Wolt"
     token: "wolt"
 
-  miro:
-    name: "Miro"
-    token: "miro"
-
-  personio:
-    name: "Personio"
-    token: "personio"
-
-  aiven:
-    name: "Aiven"
-    token: "aiven"
-
   remote:
     name: "Remote"
     token: "remote"
@@ -68,14 +56,6 @@ boards:
   mongodb:
     name: "MongoDB"
     token: "mongodb"
-
-  confluent:
-    name: "Confluent"
-    token: "confluent"
-
-  hashicorp:
-    name: "HashiCorp"
-    token: "hashicorp"
 
   netlify:
     name: "Netlify"
@@ -89,14 +69,6 @@ boards:
     name: "Intercom"
     token: "intercom"
 
-  criteo:
-    name: "Criteo"
-    token: "criteo"
-
-  sentry:
-    name: "Sentry"
-    token: "getsentry"
-
   mozilla:
     name: "Mozilla"
     token: "mozilla"
@@ -105,10 +77,6 @@ boards:
     name: "HelloFresh"
     token: "hellofresh"
 
-  deliveryhero:
-    name: "Delivery Hero"
-    token: "deliveryhero"
-
   figma:
     name: "Figma"
     token: "figma"
@@ -116,14 +84,6 @@ boards:
   brex:
     name: "Brex"
     token: "brex"
-
-  docker:
-    name: "Docker"
-    token: "docker"
-
-  checkout_com:
-    name: "Checkout.com"
-    token: "checkoutdotcom"
 
   stripe:
     name: "Stripe"
@@ -141,14 +101,6 @@ boards:
     name: "Coinbase"
     token: "coinbase"
 
-  plaid:
-    name: "Plaid"
-    token: "plaid"
-
-  grammarly:
-    name: "Grammarly"
-    token: "grammarly"
-
   airtable:
     name: "Airtable"
     token: "airtable"
@@ -161,14 +113,6 @@ boards:
     name: "Mixpanel"
     token: "mixpanel"
 
-  mapbox:
-    name: "Mapbox"
-    token: "mapbox"
-
   postman:
     name: "Postman"
     token: "postman"
-
-  benchling:
-    name: "Benchling"
-    token: "benchling"
