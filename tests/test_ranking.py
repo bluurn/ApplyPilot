@@ -51,9 +51,10 @@ def test_ranking_groups_related_signals_without_double_counting() -> None:
     assert result["signals"]["remote"]
     assert result["signals"]["contributions"]["technical_fit"] == 3
     assert result["signals"]["contributions"]["geography_fit"] == 3
-    assert result["score"] == 10.5
+    assert result["signals"]["title_tech"]
+    assert result["score"] == 11.5
     assert explain_signals(result["signals"]) == (
-        "technical +3, geography +3, relocation +1.5, salary +1, watchlist +2"
+        "technical +3, title +1, geography +3, relocation +1.5, salary +1, watchlist +2"
     )
 
 
@@ -131,7 +132,7 @@ def test_run_ranking_persists_score_signals_and_timestamp(tmp_path) -> None:
         """,
         ("job",),
     ).fetchone()
-    assert row["discovery_score"] == 9
+    assert row["discovery_score"] == 10
     assert json.loads(row["discovery_signals"])["watchlist"] is True
     assert row["ranked_at"]
     assert row["fit_score"] is None
@@ -176,3 +177,69 @@ def test_stage_results_order_by_watchlist_then_discovery_rank(tmp_path) -> None:
     rows = get_jobs_by_stage(conn=conn, stage="discovered")
 
     assert [row["url"] for row in rows] == ["watched", "ranked", "llm"]
+
+
+def test_rust_in_product_name_does_not_trigger_rust_signal() -> None:
+    # "RustRover" is a JetBrains IDE, not a Rust engineering role.
+    result = rank_job(
+        {
+            "title": "C++/Kotlin Software Developer (RustRover Debugger)",
+            "location": "Berlin, Germany",
+            "full_description": "Work on the RustRover debugger plugin for JetBrains IDE.",
+        },
+        _config(),
+    )
+
+    assert not result["signals"]["languages"]["rust"]
+    assert result["signals"]["unpreferred_language"]  # kotlin is unpreferred
+
+
+def test_sap_in_asap_does_not_trigger_unpreferred_language_penalty() -> None:
+    result = rank_job(
+        {
+            "title": "Backend Engineer",
+            "location": "Berlin, Germany",
+            "full_description": "Apply ASAP. Build REST APIs in Python.",
+        },
+        _config(),
+    )
+
+    assert not result["signals"]["unpreferred_language"]
+    assert result["signals"]["languages"]["python"]
+
+
+def test_worldwide_location_triggers_remote_signal() -> None:
+    result = rank_job(
+        {
+            "title": "Backend Engineer",
+            "location": "Worldwide",
+            "full_description": "Build APIs.",
+        },
+        _config(),
+    )
+
+    assert result["signals"]["remote"]
+    assert result["signals"]["contributions"]["geography_fit"] == 2
+
+
+def test_title_match_scores_higher_than_description_only_match() -> None:
+    title_match = rank_job(
+        {
+            "title": "Python Backend Engineer",
+            "location": "Remote",
+            "full_description": "Build backend services.",
+        },
+        _config(),
+    )
+    description_only = rank_job(
+        {
+            "title": "Software Engineer",
+            "location": "Remote",
+            "full_description": "We primarily use Python and build backend services.",
+        },
+        _config(),
+    )
+
+    assert title_match["signals"]["title_tech"]
+    assert not description_only["signals"]["title_tech"]
+    assert title_match["score"] > description_only["score"]

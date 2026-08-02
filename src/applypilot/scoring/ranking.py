@@ -20,6 +20,7 @@ DEFAULT_WEIGHTS = {
     "typescript_javascript": 3.0,
     "unpreferred_language": -2.0,
     "backend": 3.0,
+    "title_quality": 1.0,
     "germany": 3.0,
     "europe": 2.0,
     "remote": 2.0,
@@ -91,7 +92,7 @@ EUROPE_MARKERS = (
     "sweden",
     "switzerland",
 )
-REMOTE_MARKERS = ("remote", "anywhere", "work from home", "distributed")
+REMOTE_MARKERS = ("remote", "anywhere", "work from home", "distributed", "worldwide")
 RELOCATION_MARKERS = (
     "relocation assistance",
     "relocation support",
@@ -135,13 +136,13 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     text = f"{title}\n{description}"
 
     language_signals = {
-        name: any(marker in text for marker in markers)
+        name: any(_contains_word(text, marker) for marker in markers)
         for name, markers in PREFERRED_LANGUAGE_MARKERS.items()
     }
     preferred_language = any(language_signals.values())
     unpreferred_language = (
         not preferred_language
-        and any(marker in text for marker in UNPREFERRED_LANGUAGE_MARKERS)
+        and any(_contains_word(text, marker) for marker in UNPREFERRED_LANGUAGE_MARKERS)
     )
     python = language_signals["python"]
     backend = (
@@ -149,6 +150,13 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
         or "back-end" in text
         or _contains_word(text, "api")
         or "distributed system" in text
+    )
+    # Title match is a stronger signal than a mention buried in a long description.
+    title_tech = (
+        any(_contains_word(title, marker) for markers in PREFERRED_LANGUAGE_MARKERS.values() for marker in markers)
+        or "backend" in title
+        or "back-end" in title
+        or _contains_word(title, "api")
     )
     germany = any(marker in location for marker in GERMANY_MARKERS)
     europe = germany or any(marker in location for marker in EUROPE_MARKERS)
@@ -172,6 +180,7 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
     )
     contributions = {
         "technical_fit": technical_contribution,
+        "title_quality": weights["title_quality"] if title_tech else 0,
         "language_penalty": weights["unpreferred_language"] if unpreferred_language else 0,
         "geography_fit": geography_contribution,
         "relocation": weights["relocation"] if relocation else 0,
@@ -183,6 +192,7 @@ def rank_job(job: dict, search_cfg: dict | None = None) -> dict:
         "languages": language_signals,
         "unpreferred_language": unpreferred_language,
         "backend": backend,
+        "title_tech": title_tech,
         "germany": germany,
         "europe": europe,
         "remote": remote,
@@ -201,6 +211,7 @@ def explain_signals(signals: dict) -> str:
     """Render active signal contributions in a compact inspectable form."""
     labels = {
         "technical_fit": "technical",
+        "title_quality": "title",
         "geography_fit": "geography",
         "relocation": "relocation",
         "salary": "salary",
