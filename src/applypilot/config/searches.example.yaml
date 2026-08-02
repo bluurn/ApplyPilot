@@ -185,10 +185,12 @@ locations:
     location: "Sweden"
     remote: true
     country_indeed: sweden
-  # LinkedIn Worldwide (covers all EU; LinkedIn converts "Europe" → Worldwide)
+  # LinkedIn Worldwide search covering all EU. "Worldwide" avoids LinkedIn
+  # geo-detecting the VPN exit node as a non-EU country (e.g. Kazakhstan).
   - label: europe_linkedin
-    location: "Europe"
+    location: "Worldwide"
     remote: true
+    country_indeed: worldwide
 
 # Location filtering -- non-remote jobs must match an accepted location.
 location_accept:

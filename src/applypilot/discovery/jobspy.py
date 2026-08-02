@@ -239,10 +239,10 @@ def _scrape_sources(
     for site in sites:
         location = gd_location if site == "glassdoor" else search["location"]
         country = search.get("country_indeed") or defaults.get("country_indeed", "usa")
-        # JobSpy's LinkedIn adapter tries to infer a single country from
-        # "Europe" and can choose unsupported values such as Moldova. Use its
-        # supported worldwide mode and let our shared eligibility filter
-        # enforce the configured Europe-only policy on returned jobs.
+        # LinkedIn's API geo-detects the client IP to pick a country, so passing
+        # "Europe" as a location string can resolve to an unsupported country
+        # (e.g. Kazakhstan when behind a VPN). The config uses "Worldwide"
+        # directly; this guard stays as a fallback for hand-edited configs.
         if site == "linkedin" and location.casefold() == "europe":
             location = "Worldwide"
             country = "worldwide"
