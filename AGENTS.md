@@ -177,7 +177,7 @@ When a request is ambiguous, choose the option that most directly improves the o
 Current coverage (eu profile, all verified healthy):
 - Greenhouse: 29 boards, all live-verified (added Wolt, Remote, MongoDB, Netlify, Fastly, Intercom, Mozilla, HelloFresh, Figma, Brex, Stripe, Twilio, Discord, Coinbase, Airtable, Amplitude, Mixpanel, Postman; 14 candidates removed — migrated off Greenhouse)
 - Lever: 20 sites, all live-verified (added Contentsquare, Aircall, Swile, BlaBlaCar, Malt; 20 candidates removed — migrated off Lever)
-- Ashby: 35 boards (was 23; round 1: dbt Labs, Retool, Prefect, Dagster, Modal, Turso; round 2: Resend, Cal.com, Baseten, Novu, Inngest, Apify)
+- Ashby: 29 boards, all live-verified (added Prefect, Modal, Resend, Baseten, Inngest, Apify; dbt Labs, Retool, Dagster, Turso, Cal.com, Novu removed — no valid slug found)
 - Workday: 45 employers (no new additions — all candidates returned 422/401; Workday site_ids cannot be guessed reliably without seeing an actual job posting URL)
 
 Next:
