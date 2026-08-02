@@ -164,4 +164,208 @@ employers:
     site_id: "FidelityCareers"
     base_url: "https://fmr.wd1.myworkdayjobs.com"
 
+  asml:
+    name: "ASML"
+    tenant: "asml"
+    site_id: "ASMLEXT1"
+    base_url: "https://asml.wd3.myworkdayjobs.com"
+
+  nxp:
+    name: "NXP Semiconductors"
+    tenant: "nxp"
+    site_id: "careers"
+    base_url: "https://nxp.wd3.myworkdayjobs.com"
+
+  philips:
+    name: "Philips"
+    tenant: "philips"
+    site_id: "jobs-and-careers"
+    base_url: "https://philips.wd3.myworkdayjobs.com"
+
+  ing:
+    name: "ING Group"
+    tenant: "ing"
+    site_id: "ICSGBLCOR"
+    base_url: "https://ing.wd3.myworkdayjobs.com"
+
+  booking_holdings:
+    name: "Booking Holdings"
+    tenant: "priceline"
+    site_id: "BookingHoldings"
+    base_url: "https://priceline.wd1.myworkdayjobs.com"
+
+  amadeus:
+    name: "Amadeus IT Group"
+    tenant: "amadeus"
+    site_id: "jobs"
+    base_url: "https://amadeus.wd502.myworkdayjobs.com"
+
+  siemens_healthineers:
+    name: "Siemens Healthineers"
+    tenant: "onehealthineers"
+    site_id: "SHSJB"
+    base_url: "https://onehealthineers.wd3.myworkdayjobs.com"
+
+  simcorp:
+    name: "SimCorp"
+    tenant: "simcorp"
+    site_id: "SimCorp_Jobs"
+    base_url: "https://simcorp.wd3.myworkdayjobs.com"
+
+  thales:
+    name: "Thales"
+    tenant: "thales"
+    site_id: "Careers"
+    base_url: "https://thales.wd3.myworkdayjobs.com"
+
+  wolters_kluwer:
+    name: "Wolters Kluwer"
+    tenant: "wk"
+    site_id: "External"
+    base_url: "https://wk.wd3.myworkdayjobs.com"
+
+  signify:
+    name: "Signify"
+    tenant: "lighting"
+    site_id: "jobs-and-careers"
+    base_url: "https://lighting.wd3.myworkdayjobs.com"
+
+  julius_baer:
+    name: "Julius Baer"
+    tenant: "juliusbaer"
+    site_id: "External"
+    base_url: "https://juliusbaer.wd3.myworkdayjobs.com"
+
+  salesforce:
+    name: "Salesforce"
+    tenant: "salesforce"
+    site_id: "External_Career_Site"
+    base_url: "https://salesforce.wd12.myworkdayjobs.com"
+
+  worldpay:
+    name: "Worldpay"
+    tenant: "worldpay"
+    site_id: "Worldpay_External_Careers_Site"
+    base_url: "https://worldpay.wd5.myworkdayjobs.com"
+
+  springer_nature:
+    name: "Springer Nature"
+    tenant: "springernature"
+    site_id: "SpringerNatureCareers"
+    base_url: "https://springernature.wd3.myworkdayjobs.com"
+
+  finastra:
+    name: "Finastra"
+    tenant: "finastra"
+    site_id: "FINC"
+    base_url: "https://finastra.wd3.myworkdayjobs.com"
+
+  fnz:
+    name: "FNZ"
+    tenant: "fnz"
+    site_id: "fnz_careers"
+    base_url: "https://fnz.wd3.myworkdayjobs.com"
+
+  criteo:
+    name: "Criteo"
+    tenant: "criteo"
+    site_id: "Criteo_Career_Site"
+    base_url: "https://criteo.wd3.myworkdayjobs.com"
+
+  lseg:
+    name: "LSEG (London Stock Exchange Group)"
+    tenant: "lseg"
+    site_id: "Careers"
+    base_url: "https://lseg.wd3.myworkdayjobs.com"
+
+  gn_audio:
+    name: "GN Audio (Jabra)"
+    tenant: "gn"
+    site_id: "GN-Careers"
+    base_url: "https://gn.wd3.myworkdayjobs.com"
+
+  paypal:
+    name: "PayPal"
+    tenant: "paypal"
+    site_id: "jobs"
+    base_url: "https://paypal.wd1.myworkdayjobs.com"
+
+  swift:
+    name: "SWIFT"
+    tenant: "swift"
+    site_id: "Join-Swift"
+    base_url: "https://swift.wd3.myworkdayjobs.com"
+
+  euronext:
+    name: "Euronext"
+    tenant: "hrhub"
+    site_id: "Euronext_Career_Page"
+    base_url: "https://hrhub.wd3.myworkdayjobs.com"
+
+  thomson_reuters:
+    name: "Thomson Reuters"
+    tenant: "thomsonreuters"
+    site_id: "External_Career_Site"
+    base_url: "https://thomsonreuters.wd5.myworkdayjobs.com"
+
+  mastercard:
+    name: "Mastercard"
+    tenant: "mastercard"
+    site_id: "CorporateCareers"
+    base_url: "https://mastercard.wd1.myworkdayjobs.com"
+
+  astrazeneca:
+    name: "AstraZeneca"
+    tenant: "astrazeneca"
+    site_id: "broadbean_external"
+    base_url: "https://astrazeneca.wd3.myworkdayjobs.com"
+
+  samsung:
+    name: "Samsung"
+    tenant: "sec"
+    site_id: "Samsung_Careers"
+    base_url: "https://sec.wd3.myworkdayjobs.com"
+
+  flutter:
+    name: "Flutter Entertainment"
+    tenant: "flutterbe"
+    site_id: "FlutterInt_External"
+    base_url: "https://flutterbe.wd3.myworkdayjobs.com"
+
+  unity:
+    name: "Unity Technologies"
+    tenant: "unitytech"
+    site_id: "unity"
+    base_url: "https://unitytech.wd1.myworkdayjobs.com"
+
+  ebay:
+    name: "eBay"
+    tenant: "ebay"
+    site_id: "Apply"
+    base_url: "https://ebay.wd5.myworkdayjobs.com"
+
+  rolls_royce:
+    name: "Rolls-Royce"
+    tenant: "rollsroyce"
+    site_id: "professional"
+    base_url: "https://rollsroyce.wd3.myworkdayjobs.com"
+
+  motorola_solutions:
+    name: "Motorola Solutions"
+    tenant: "motorolasolutions"
+    site_id: "Careers"
+    base_url: "https://motorolasolutions.wd5.myworkdayjobs.com"
+
+  bbva:
+    name: "BBVA"
+    tenant: "bbva"
+    site_id: "BBVA"
+    base_url: "https://bbva.wd3.myworkdayjobs.com"
+
+  rabobank:
+    name: "Rabobank"
+    tenant: "rabobank"
+    site_id: "jobs"
+    base_url: "https://rabobank.wd3.myworkdayjobs.com"
+
 

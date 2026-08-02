@@ -178,7 +178,7 @@ Current coverage (eu profile, all verified healthy):
 - Greenhouse: 29 boards, all live-verified (added Wolt, Remote, MongoDB, Netlify, Fastly, Intercom, Mozilla, HelloFresh, Figma, Brex, Stripe, Twilio, Discord, Coinbase, Airtable, Amplitude, Mixpanel, Postman; 14 candidates removed — migrated off Greenhouse)
 - Lever: 20 sites, all live-verified (added Contentsquare, Aircall, Swile, BlaBlaCar, Malt; 20 candidates removed — migrated off Lever)
 - Ashby: 29 boards, all live-verified (added Prefect, Modal, Resend, Baseten, Inngest, Apify; dbt Labs, Retool, Dagster, Turso, Cal.com, Novu removed — no valid slug found)
-- Workday: 45 employers (no new additions — all candidates returned 422/401; Workday site_ids cannot be guessed reliably without seeing an actual job posting URL)
+- Workday: 75 employers (added ASML, NXP, Philips, ING, Booking Holdings, Amadeus IT Group, Siemens Healthineers, SimCorp, Thales, Wolters Kluwer, Signify, Julius Baer, Salesforce, Worldpay, Springer Nature, Finastra, FNZ, Criteo, LSEG, GN Audio, PayPal, SWIFT, Euronext, Thomson Reuters, Mastercard, AstraZeneca, Samsung, Flutter Entertainment, Unity Technologies, eBay, Rolls-Royce, Motorola Solutions, BBVA, Rabobank via real job posting URL extraction; all 75/75 portals healthy)
 
 Next:
 - Continue expanding Workday toward 100+ employers.
