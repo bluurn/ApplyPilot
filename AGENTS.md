@@ -175,12 +175,10 @@ When a request is ambiguous, choose the option that most directly improves the o
 ## Discovery Roadmap
 
 Current coverage (eu profile, all verified healthy):
-- Greenhouse: 24 boards (was 11; added Wolt, Miro, Personio, Aiven, Remote, MongoDB, Confluent, HashiCorp, Netlify, Fastly, Intercom, Criteo)
-- Lever: 26 sites (was 15; added Algolia, Doctolib, Contentsquare, Aircall, Back Market, PayFit, Klarna, Spendesk, Dataiku, leboncoin)
-- Ashby: 29 boards (was 23; added dbt Labs, Retool, Prefect, Dagster, Modal, Turso)
-- Workday: 45 employers (unchanged; Nokia, Arm, ASML, Ericsson, IBM, ThoughtWorks, Capgemini all returned 4xx — CXS endpoint restricted or site_id/tenant unknown)
-
-Note: Nokia, Arm, Ericsson, ASML, IBM, ThoughtWorks, Capgemini could not be added to Workday — their CXS endpoints returned 422/404/401. To add them, the correct site_id must be found by inspecting actual Workday job-posting URLs for each company.
+- Greenhouse: 33 boards (was 11; round 1: Wolt, Miro, Personio, Aiven, Remote, MongoDB, Confluent, HashiCorp, Netlify, Fastly, Intercom, Criteo; round 2: Sentry, Mozilla, HelloFresh, Delivery Hero, Figma, Brex, Docker, Checkout.com)
+- Lever: 32 sites (was 15; round 1: Algolia, Doctolib, Contentsquare, Aircall, Back Market, PayFit, Klarna, Spendesk, Dataiku, leboncoin; round 2: Deezer, Mirakl, Swile, BlaBlaCar, Alan, ManoMano)
+- Ashby: 35 boards (was 23; round 1: dbt Labs, Retool, Prefect, Dagster, Modal, Turso; round 2: Resend, Cal.com, Baseten, Novu, Inngest, Apify)
+- Workday: 45 employers (no new additions — all candidates returned 422/401; Workday site_ids cannot be guessed reliably without seeing an actual job posting URL)
 
 Next:
 - Continue expanding Workday toward 100+ employers.

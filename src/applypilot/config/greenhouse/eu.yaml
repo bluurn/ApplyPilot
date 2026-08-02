@@ -92,3 +92,35 @@ boards:
   criteo:
     name: "Criteo"
     token: "criteo"
+
+  sentry:
+    name: "Sentry"
+    token: "getsentry"
+
+  mozilla:
+    name: "Mozilla"
+    token: "mozilla"
+
+  hellofresh:
+    name: "HelloFresh"
+    token: "hellofresh"
+
+  deliveryhero:
+    name: "Delivery Hero"
+    token: "deliveryhero"
+
+  figma:
+    name: "Figma"
+    token: "figma"
+
+  brex:
+    name: "Brex"
+    token: "brex"
+
+  docker:
+    name: "Docker"
+    token: "docker"
+
+  checkout_com:
+    name: "Checkout.com"
+    token: "checkoutdotcom"

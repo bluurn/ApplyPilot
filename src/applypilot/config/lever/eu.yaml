@@ -125,3 +125,33 @@ sites:
     name: "leboncoin"
     site: "leboncoin"
     instance: "global"
+
+  deezer:
+    name: "Deezer"
+    site: "deezer"
+    instance: "global"
+
+  mirakl:
+    name: "Mirakl"
+    site: "mirakl"
+    instance: "global"
+
+  swile:
+    name: "Swile"
+    site: "swile"
+    instance: "global"
+
+  blablacar:
+    name: "BlaBlaCar"
+    site: "blablacar"
+    instance: "global"
+
+  alan:
+    name: "Alan"
+    site: "alan"
+    instance: "global"
+
+  manoMano:
+    name: "ManoMano"
+    site: "manomano"
+    instance: "global"

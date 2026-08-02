@@ -144,6 +144,14 @@ def test_packaged_eu_profile_includes_greenhouse_boards() -> None:
         "fastly",
         "intercom",
         "criteo",
+        "sentry",
+        "mozilla",
+        "hellofresh",
+        "deliveryhero",
+        "figma",
+        "brex",
+        "docker",
+        "checkout_com",
     } <= result["boards"].keys()
 
 
@@ -173,6 +181,12 @@ def test_packaged_eu_profile_includes_lever_sites() -> None:
         "spendesk",
         "dataiku",
         "leboncoin",
+        "deezer",
+        "mirakl",
+        "swile",
+        "blablacar",
+        "alan",
+        "manoMano",
     } <= result["sites"].keys()
 
 
@@ -200,6 +214,12 @@ def test_packaged_eu_profile_includes_ashby_boards() -> None:
         "dagster",
         "modal",
         "turso",
+        "resend",
+        "cal_com",
+        "baseten",
+        "novu",
+        "inngest",
+        "apify",
     } <= result["boards"].keys()
 
 

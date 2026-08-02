@@ -116,3 +116,27 @@ boards:
   turso:
     name: "Turso"
     board: "turso"
+
+  resend:
+    name: "Resend"
+    board: "Resend"
+
+  cal_com:
+    name: "Cal.com"
+    board: "cal-com"
+
+  baseten:
+    name: "Baseten"
+    board: "Baseten"
+
+  novu:
+    name: "Novu"
+    board: "Novu"
+
+  inngest:
+    name: "Inngest"
+    board: "Inngest"
+
+  apify:
+    name: "Apify"
+    board: "Apify"
