@@ -1,19 +1,18 @@
 # ApplyPilot Fork Context
 
-This repository is a personal fork of ApplyPilot optimized for the owner's job search. Do not optimize for upstream compatibility when it conflicts with discovery quality, ranking quality, or usability for this fork.
+This repository is a personal fork of ApplyPilot optimized for the owner's job search. Do not optimize for upstream compatibility when it conflicts with discovery quality, ranking quality, or usability.
 
 ## Primary Principle
 
-Every change should improve job discovery quality or make the search workflow more effective for the owner.
+Every change should improve job discovery quality or make the search workflow more effective.
 
 Priority order:
-
 1. Discovery quality
 2. Ranking quality
 3. Daily review workflow
 4. Application automation
 
-Do not spend meaningful effort polishing application automation while discovery remains weak.
+Do not spend meaningful effort on application automation while discovery remains weak.
 
 ## User Search Geography
 
@@ -44,121 +43,142 @@ These preferences should eventually be configurable rather than permanently hard
 
 ## Current Branch
 
-Development currently happens on:
+Development currently happens on `feat/eu-search-profile`. Keep work on this branch unless explicitly instructed otherwise.
 
-`feat/eu-search-profile`
+Do not push changes. The owner pushes manually. Do not run `sudo nixos-rebuild switch`; the owner performs system activation.
 
-Keep work on this branch unless explicitly instructed otherwise.
+## Architecture
 
-## Current Architecture Work
+### Pipeline Stages
 
-A profile-aware YAML registry layer exists in:
+Six sequential stages (`pipeline.py`), each independently runnable:
 
-`src/applypilot/config_registry.py`
+1. **discover** — JobSpy boards (isolated subprocesses) + Workday portals + Greenhouse + Lever + Ashby + direct career sites
+2. **enrich** — fetch full descriptions (JSON-LD → CSS selectors → AI extraction cascade)
+3. **score** — LLM fit score 1–10; applied only to deterministic shortlist + watchlist to bound paid usage
+4. **tailor** — per-job resume rewrite; `resume_facts` are ground truth, never fabricated
+5. **cover** — targeted cover letter per job
+6. **pdf** — PDF conversion of tailored resumes and cover letters
 
-It supports:
+CLI entry point: `cli.py` (Typer). All user data lives under `~/.applypilot/` (overridable via `APPLYPILOT_DIR`).
 
-- `search_profile`
-- `search_profiles`
-- recursive dictionary merge
-- order-preserving list deduplication
-- legacy single-file fallback
-- user registry overrides
+### Configuration System
 
-Runtime configuration in `src/applypilot/config.py` uses registries from package config plus optional user overrides from:
+Two-layer config: package-shipped YAML registries + optional user overrides.
 
-`$APPLYPILOT_DIR/config`
+- Package registries: `src/applypilot/config/` — employers, greenhouse, lever, ashby, sites, profiles
+- User overrides: `~/.applypilot/config/` — same directory structure; installed package stays immutable
+- `config_registry.py` — merges registries; supports `search_profile`/`search_profiles`, recursive dict merge, order-preserving list dedup, legacy single-file fallback
+- `config.py` — runtime paths and loaders (`load_sites_config()`, `load_employers_config()`)
 
-Normally this is:
+**Do not** read package YAML files directly from discovery or enrichment modules. Always go through the loaders in `config.py`.
 
-`~/.applypilot/config`
-
-Important loaders include:
-
-- `load_sites_config()`
-- `load_employers_config()`
-
-Do not bypass these loaders by reading package YAML files directly from discovery or enrichment modules.
-
-## Registry Layout
-
-Package registries may use:
+### Registry Layout
 
 ```text
 src/applypilot/config/
 ├── profiles.yaml
-├── employers.yaml
-├── ashby.yaml
-├── greenhouse.yaml
-├── lever.yaml
-├── sites.yaml
-├── employers/
-│   └── <fragment>.yaml
-├── ashby/
-│   └── <fragment>.yaml
-├── greenhouse/
-│   └── <fragment>.yaml
-├── lever/
-│   └── <fragment>.yaml
-└── sites/
-    └── <fragment>.yaml
+├── employers.yaml  (+ employers/)
+├── ashby.yaml      (+ ashby/)
+├── greenhouse.yaml (+ greenhouse/)
+├── lever.yaml      (+ lever/)
+└── sites.yaml      (+ sites/)
 ```
 
-User overrides may use the equivalent structure under:
+User overrides mirror this structure under `~/.applypilot/config/`. Personal employers, sites, blocks, URL mappings, and profile fragments belong there.
 
-```text
-~/.applypilot/config/
+### Discovery Architecture (`src/applypilot/discovery/`)
+
+Each ATS source is isolated — one source failing must never stop the others.
+
+- `jobspy.py` — JobSpy boards in isolated subprocesses with hard timeouts and partial-result retention
+- `workday.py` — Workday CXS API
+- `greenhouse.py` — Greenhouse public API with per-employer failure isolation
+- `lever.py` — Lever Postings API with global/EU instance support
+- `ashby.py` — Ashby Job Postings API with compensation data
+- `smartextract.py` — direct career site scraping; reuses successful selectors within a crawl
+- `watchlist.py` — exact normalized company watchlist matching (not fuzzy)
+
+### Ranking & Filtering
+
+- Deterministic ranking from configurable signals (geography, remote, language, relocation, salary, watchlist) runs before and after enrichment — `scoring/ranking.py`
+- LLM fit score is separate; applied only to the deterministic shortlist to prevent unbounded paid LLM usage
+- Shared location eligibility logic rejects incompatible geographies while preserving explicit EU locations, worldwide/unspecified remote, and relocation/sponsorship offers
+- All eligibility and ranking decisions are logged and inspectable
+
+### Auto-Apply (`src/applypilot/apply/`)
+
+Chrome/Playwright browser launcher that delegates form navigation to the Claude Code CLI. Playwright MCP server is configured automatically per worker at runtime — no manual MCP setup needed.
+
+Never submit applications without explicit user approval. Safe validation command:
+
+```bash
+nix run . -- apply --dry-run --headless --limit 1
 ```
 
-The installed package should remain immutable. Personal employers, sites, blocks, URL mappings, and profile fragments belong in the user config directory.
+Cover letter requirements enforced by the Python path:
 
-## Completed Work
+- Full name `Vladimir Suvorov`, never nickname `bluurn`
+- Natural introduction after `Dear Hiring Manager,`
+- Closing exactly `Best regards,` followed by full name
+- Left-aligned prose PDF layout with no resume-style bottom rule
 
-The fork already includes:
+### BAML (`baml_src/`, `src/applypilot/scoring/baml_adapter.py`)
 
-- NixOS / Home Manager packaging
-- Chromium and Playwright runtime integration
-- development shell with Python, uv, pytest, ruff, pyright, Chromium, and Playwright
-- profile-aware config registry
-- runtime registry integration in `config.py`
-- tests for registry merging and runtime integration
-- Workday registry health checking via `applypilot workday-health`
-- 44 live Workday portals in the base plus Europe profile registries
-- isolated JobSpy board subprocesses with hard timeouts and partial-result retention
-- first-class Greenhouse public API discovery with per-employer failure isolation
-- 10 verified Europe-relevant Greenhouse boards in the Europe profile,
-  including JetBrains
-- shared inspectable location eligibility decisions across all discovery sources
-- country-restricted remote filtering with relocation and sponsorship preservation
-- first-class Lever Postings API discovery with global/EU instance support
-- 15 verified Europe-relevant Lever sites in the Europe profile
-- first-class Ashby Job Postings API discovery with compensation data
-- 23 verified Europe-relevant Ashby boards in the Europe profile
-- exact normalized company watchlist matching without fuzzy scoring
-- watchlist-first ATS ordering and persistent company/watchlist job fields
-- watchlist coverage in status output and priority cards in the dashboard
-- transparent configurable discovery ranking with persisted signal contributions
-- deterministic ranking before and after enrichment without replacing LLM fit scores
-- daily review workflow via `applypilot today`
-- per-target Smart Extract failure isolation and in-crawl selector reuse
-- supported worldwide fallback for Europe-wide LinkedIn remote searches
-- Workday source identity deduplication before repeated detail fetches
-- deterministic paid-scoring shortlist with unconditional watchlist inclusion
-- persisted eligibility re-audit and semantic duplicate suppression before paid scoring
-- bounded fallback enrichment prompts for unstructured job pages
+Deferred. Do not enable until deterministic resume-fact extraction, role/bullet selection, and claim validation are stable in the Python path.
 
-The development shell exports `PYTHONPATH=$PWD/src:$PYTHONPATH`.
+## User Data (local, never commit)
+
+- `~/.applypilot/applypilot.db` — SQLite database
+- `~/.applypilot/profile.json` — personal data for scoring and form fill
+- `~/.applypilot/searches.yaml` — search queries, ranking weights, watchlist
+- `~/.applypilot/tailored_resumes/` and `~/.applypilot/cover_letters/` — generated artifacts
+
+## Validation
+
+Run the narrowest relevant tests first, then the full suite:
+
+```bash
+pytest tests/test_config_registry.py tests/test_config_runtime.py   # config changes
+pytest -q tests/test_chrome.py tests/test_pdf.py                    # apply/PDF changes
+pytest                                                               # full suite
+ruff check .
+pyright
+```
+
+The Nix development shell (`nix develop`) provides Python, uv, pytest, ruff, pyright, Chromium, and Playwright with `PYTHONPATH=$PWD/src:$PYTHONPATH` set.
+
+## Engineering Guidelines
+
+- Prefer focused changes with regression tests.
+- Treat per-source discovery failures as isolated; one source must not stop the rest.
+- Log why jobs are filtered or ranked.
+- Keep configuration user-editable; do not silently infer important preferences.
+- Do not add abstraction for upstream cleanliness.
+- Do not commit: generated files, secrets, personal resumes, API keys, databases, browser profiles, or local search data.
+- Ruff line length is 120.
+
+## Before / After Changing Code
+
+Before:
+1. Inspect the relevant implementation and tests.
+2. Check for existing uncommitted work and do not overwrite it.
+
+After:
+1. Run tests.
+2. Summarize exactly what changed.
+3. Report any tests or checks that could not be run.
+4. Commit on the current branch only when explicitly requested.
+
+When a request is ambiguous, choose the option that most directly improves the owner's job discovery quality while keeping behavior configurable.
 
 ## Immediate Next Task
 
-Add first-class discovery coverage for the remaining priority companies,
-starting with Canonical and Red Hat.
+Add first-class discovery coverage for Canonical and Red Hat.
 
 Requirements:
-
-1. Identify stable public job feeds or APIs for Canonical and Red Hat.
-2. Integrate them through the appropriate registry or an isolated first-class
-   source rather than fragile page scraping where possible.
+1. Identify stable public job feeds or APIs for each company.
+2. Integrate through the appropriate registry or an isolated first-class source (not fragile page scraping where avoidable).
 3. Preserve shared Europe/remote eligibility filtering and ranking.
 4. Report source failures without stopping other discovery.
 5. Make watchlist coverage accurately report both companies as configured.
@@ -166,39 +186,11 @@ Requirements:
 
 ## Discovery Roadmap
 
-### Employer and ATS coverage
-
 - Expand Workday employers to roughly 100–300 useful companies.
-- Expand Greenhouse coverage beyond the initial 9 verified boards.
-- Expand Lever coverage beyond the initial 15 verified sites.
-- Expand Ashby coverage beyond the initial 23 verified boards.
+- Expand Greenhouse, Lever, and Ashby coverage.
 - Improve Europe-relevant JobSpy coverage.
-- Extend strong Europe and remote filtering as new source data permits.
-
-### Final / last-priority TODO: BAML tailoring backend
-
-- Keep BAML deferred until deterministic resume-fact extraction, role/bullet
-  selection, and claim validation are stable in the Python path.
-- Then evaluate BAML at the LLM boundary for typed tailoring drafts,
-  structured parsing, retries, and invariant checks.
-- BAML must not replace deterministic source grounding or silently broaden the
-  allowed resume facts.
-
-### Future TODO: Claude provider unification
-
-- Evaluate using Anthropic/Claude as the common LLM provider for enrichment,
-  scoring, tailoring, and cover letters to reduce provider and dependency
-  footprint.
-- Keep provider/model selection configurable and compare cost, latency,
-  structured-output reliability, and rate limits before migrating defaults.
-- Keep the Claude Code CLI browser agent separate from the batch LLM provider
-  unless a direct API path proves reliable and economical.
 
 ### Watchlist
-
-Support a high-priority company watchlist that is checked before general discovery.
-
-Example:
 
 ```yaml
 watchlist:
@@ -212,175 +204,6 @@ watchlist:
   - Red Hat
 ```
 
-Watchlist companies should be searched first and surfaced prominently.
+### Future: Claude Provider Unification
 
-### Ranking
-
-Ranking should account for configurable signals such as:
-
-- remote compatibility
-- Germany relevance
-- Europe relevance
-- Python/backend fit
-- relocation support
-- salary availability and quality
-- preferred companies
-- penalties for incompatible geography
-
-Avoid opaque magic scoring. Keep individual signals inspectable and configurable.
-
-### Daily Dashboard
-
-The intended command is:
-
-```bash
-applypilot today
-```
-
-It should summarize:
-
-- newly discovered jobs
-- best matches
-- new companies
-- already applied jobs
-- newly opened roles
-- watchlist results
-
-Implemented by `applypilot today`, including configurable recency and result
-limits plus watchlist source coverage.
-
-## Engineering Guidelines
-
-- Prefer focused changes with regression tests.
-- Preserve existing behavior unless it harms the owner's search goals.
-- Avoid adding abstraction merely for upstream cleanliness.
-- Keep configuration user-editable.
-- Do not silently infer important preferences.
-- Log why jobs are filtered or ranked when practical.
-- Treat discovery failures per source as isolated failures; one source should not stop the rest of discovery.
-- Avoid committing generated files, secrets, personal resumes, API keys, databases, browser profiles, or local search data.
-
-## Validation
-
-For Python changes, run the narrowest relevant tests first, then the full suite when practical:
-
-```bash
-pytest tests/test_config_registry.py tests/test_config_runtime.py
-pytest
-```
-
-Use Ruff and Pyright when changes affect typing, imports, or larger module boundaries:
-
-```bash
-ruff check .
-pyright
-```
-
-## Working Style for Codex
-
-Before changing code:
-
-1. Read this file.
-2. Inspect the relevant implementation and tests.
-3. Check for existing uncommitted work and do not overwrite it.
-
-After changing code:
-
-1. Run tests.
-2. Summarize exactly what changed.
-3. Report any tests or checks that could not be run.
-4. Create an intentional commit on the current branch when requested.
-
-When a request is ambiguous, choose the option that most directly improves the owner's job discovery quality while keeping the behavior configurable.
-
-## Claude Handoff Context (2026-08-02)
-
-### Repository state
-
-- Branch: `feat/eu-search-profile`
-- Working tree is clean and synchronized with origin at handoff time.
-- Recent commits include Canonical/Red Hat discovery, preferred-language ranking,
-  relative board URL resolution, natural cover-letter introductions/closings,
-  clean cover-letter PDF rendering, and clean Chromium profile fallback.
-- Do not push changes from the agent. The owner pushes manually.
-- Do not run `sudo nixos-rebuild switch`; the owner performs system activation.
-- Prefer project-local commands through `nix run . -- ...` or `nix develop`.
-
-### Current local pipeline state
-
-The user database is intentionally local and must not be committed:
-`~/.applypilot/applypilot.db`.
-
-Latest verified counts:
-
-- 1,229 discovered jobs; 1,229 deterministically ranked
-- 1,153 eligible after audit; 117 duplicate postings; 76 ineligible
-- 1,126 full descriptions; 95 pending enrichment; 7 enrichment errors
-- 404 LLM-scored jobs
-- 7 explicitly shortlisted jobs
-- 7 tailored resumes, 7 cover letters, 7 ready to apply
-- 0 applications submitted
-- 1 apply error is from a dry-run launcher attempt; no application was submitted
-
-The shortlist is deliberately unchanged because the user found no additional
-new candidates worth adding. Do not auto-add jobs or tailor the 256 other 7+
-roles without explicit user approval.
-
-### Generated local artifacts
-
-The seven approved application packages are under:
-
-- `~/.applypilot/tailored_resumes/`
-- `~/.applypilot/cover_letters/`
-
-Cover-letter requirements now enforced by the Python path:
-
-- Full name `Vladimir Suvorov`, never the nickname `bluurn`
-- A natural introduction after `Dear Hiring Manager,`
-- Closing exactly `Best regards,` followed by the full name
-- Left-aligned prose PDF layout with no resume-style bottom rule
-
-### Auto-apply status
-
-The browser launcher now starts successfully on a clean Nix/Chromium
-installation without requiring `~/.config/google-chrome`. The first dry run
-then stopped because the Claude Code CLI reported:
-`Not logged in · Please run /login`.
-
-After the user obtains/authenticates Claude Code, the safe validation command is:
-
-```bash
-nix run . -- apply --dry-run --headless --limit 1
-```
-
-Never submit applications without explicit user approval. A real submission
-should target one approved URL with `apply --url`.
-
-### Current engineering priorities
-
-1. Keep discovery quality ahead of application automation.
-2. If application work resumes, verify Claude authentication and the one-job
-   dry run before touching real submissions.
-3. Continue improving enrichment quality for the remaining 95 jobs, especially
-   the seven isolated errors, without spending effort on already rejected or
-   duplicate postings.
-4. Keep BAML deferred until deterministic resume-fact extraction, role/bullet
-   selection, and claim validation are stable.
-5. The Claude provider-unification idea is future work: evaluate an Anthropic
-   provider behind the existing LLM interface, compare cost/latency/structured
-   output/rate limits, and keep provider selection configurable. Do not replace
-   deterministic source grounding with an LLM.
-
-### Validation commands
-
-Use focused tests first, then broader checks when practical:
-
-```bash
-pytest -q tests/test_chrome.py tests/test_pdf.py
-pytest
-ruff check .
-pyright
-```
-
-Some local virtual-environment test invocations may lack runtime dependencies;
-use the Nix development shell when that occurs.
+Evaluate using Anthropic/Claude as the common LLM provider for enrichment, scoring, tailoring, and cover letters. Keep provider/model selection configurable. Compare cost, latency, structured-output reliability, and rate limits before migrating defaults. Keep the Claude Code CLI browser agent separate from the batch LLM provider unless a direct API path proves reliable and economical.
