@@ -292,3 +292,95 @@ After changing code:
 4. Create an intentional commit on the current branch when requested.
 
 When a request is ambiguous, choose the option that most directly improves the owner's job discovery quality while keeping the behavior configurable.
+
+## Claude Handoff Context (2026-08-02)
+
+### Repository state
+
+- Branch: `feat/eu-search-profile`
+- Working tree is clean and synchronized with origin at handoff time.
+- Recent commits include Canonical/Red Hat discovery, preferred-language ranking,
+  relative board URL resolution, natural cover-letter introductions/closings,
+  clean cover-letter PDF rendering, and clean Chromium profile fallback.
+- Do not push changes from the agent. The owner pushes manually.
+- Do not run `sudo nixos-rebuild switch`; the owner performs system activation.
+- Prefer project-local commands through `nix run . -- ...` or `nix develop`.
+
+### Current local pipeline state
+
+The user database is intentionally local and must not be committed:
+`~/.applypilot/applypilot.db`.
+
+Latest verified counts:
+
+- 1,229 discovered jobs; 1,229 deterministically ranked
+- 1,153 eligible after audit; 117 duplicate postings; 76 ineligible
+- 1,126 full descriptions; 95 pending enrichment; 7 enrichment errors
+- 404 LLM-scored jobs
+- 7 explicitly shortlisted jobs
+- 7 tailored resumes, 7 cover letters, 7 ready to apply
+- 0 applications submitted
+- 1 apply error is from a dry-run launcher attempt; no application was submitted
+
+The shortlist is deliberately unchanged because the user found no additional
+new candidates worth adding. Do not auto-add jobs or tailor the 256 other 7+
+roles without explicit user approval.
+
+### Generated local artifacts
+
+The seven approved application packages are under:
+
+- `~/.applypilot/tailored_resumes/`
+- `~/.applypilot/cover_letters/`
+
+Cover-letter requirements now enforced by the Python path:
+
+- Full name `Vladimir Suvorov`, never the nickname `bluurn`
+- A natural introduction after `Dear Hiring Manager,`
+- Closing exactly `Best regards,` followed by the full name
+- Left-aligned prose PDF layout with no resume-style bottom rule
+
+### Auto-apply status
+
+The browser launcher now starts successfully on a clean Nix/Chromium
+installation without requiring `~/.config/google-chrome`. The first dry run
+then stopped because the Claude Code CLI reported:
+`Not logged in · Please run /login`.
+
+After the user obtains/authenticates Claude Code, the safe validation command is:
+
+```bash
+nix run . -- apply --dry-run --headless --limit 1
+```
+
+Never submit applications without explicit user approval. A real submission
+should target one approved URL with `apply --url`.
+
+### Current engineering priorities
+
+1. Keep discovery quality ahead of application automation.
+2. If application work resumes, verify Claude authentication and the one-job
+   dry run before touching real submissions.
+3. Continue improving enrichment quality for the remaining 95 jobs, especially
+   the seven isolated errors, without spending effort on already rejected or
+   duplicate postings.
+4. Keep BAML deferred until deterministic resume-fact extraction, role/bullet
+   selection, and claim validation are stable.
+5. The Claude provider-unification idea is future work: evaluate an Anthropic
+   provider behind the existing LLM interface, compare cost/latency/structured
+   output/rate limits, and keep provider selection configurable. Do not replace
+   deterministic source grounding with an LLM.
+
+### Validation commands
+
+Use focused tests first, then broader checks when practical:
+
+```bash
+pytest -q tests/test_chrome.py tests/test_pdf.py
+pytest
+ruff check .
+pyright
+```
+
+Some local virtual-environment test invocations may lack runtime dependencies;
+use the Nix development shell when that occurs.
