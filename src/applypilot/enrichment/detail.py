@@ -12,6 +12,7 @@ Three-tier extraction cascade (cheapest first):
 
 import json
 import logging
+import os
 import re
 import sqlite3
 import time
@@ -110,7 +111,8 @@ def resolve_wttj_urls(conn: sqlite3.Connection) -> int:
                 pass
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        _exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+        browser = p.chromium.launch(headless=True, **({"executable_path": _exe} if _exe else {}))
         page = browser.new_page(user_agent=UA)
         page.on("response", capture_algolia)
         page.goto(
@@ -606,6 +608,9 @@ def scrape_site_batch(
             launch_opts: dict = {"headless": True}
             if _PROXY_CONFIG:
                 launch_opts["proxy"] = _PROXY_CONFIG["playwright"]
+            _exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+            if _exe:
+                launch_opts["executable_path"] = _exe
             browser = p.chromium.launch(**launch_opts)
             context = browser.new_context(user_agent=UA)
             page = context.new_page()
@@ -825,7 +830,7 @@ def stream_detail(
 
 # -- Public entry point ------------------------------------------------------
 
-def run_enrichment(limit: int = 100, workers: int = 1) -> dict:
+def run_enrichment(limit: int = 2000, workers: int = 1) -> dict:
     """Main entry point for detail page enrichment.
 
     Fetches pending jobs from the database (those without full_description),

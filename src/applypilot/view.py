@@ -86,8 +86,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
         WHERE (fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0)
           AND eligibility_allowed IS NOT 0
           AND duplicate_of IS NULL
-        ORDER BY is_watchlist DESC, discovery_score DESC,
-                 fit_score DESC, site, title
+        ORDER BY fit_score DESC NULLS LAST, is_watchlist DESC, discovery_score DESC, site, title
     """).fetchall()
 
     # Color map per site
@@ -253,7 +252,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
   .search-input::placeholder {{ color: #64748b; }}
 
   /* Score distribution */
-  .score-section {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }}
+  .score-section {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; align-items: start; }}
   .score-dist {{ background: #1e293b; border-radius: 12px; padding: 1.5rem; }}
   .score-dist h3 {{ font-size: 1rem; margin-bottom: 1rem; color: #94a3b8; }}
   .score-row {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }}
@@ -263,7 +262,7 @@ def generate_dashboard(output_path: str | None = None) -> str:
   .score-count {{ width: 2.5rem; font-size: 0.8rem; color: #94a3b8; }}
 
   /* Site bars */
-  .sites-section {{ background: #1e293b; border-radius: 12px; padding: 1.5rem; }}
+  .sites-section {{ background: #1e293b; border-radius: 12px; padding: 1.5rem; overflow-y: auto; }}
   .sites-section h3 {{ font-size: 1rem; margin-bottom: 1rem; color: #94a3b8; }}
   .site-row {{ margin-bottom: 0.8rem; }}
   .site-name {{ font-weight: 600; font-size: 0.9rem; }}
@@ -412,6 +411,14 @@ function applyFilters() {{
 }}
 
 applyFilters();
+
+function syncSitesHeight() {{
+  const dist = document.querySelector('.score-dist');
+  const sites = document.querySelector('.sites-section');
+  if (dist && sites) sites.style.maxHeight = dist.offsetHeight + 'px';
+}}
+window.addEventListener('load', syncSitesHeight);
+window.addEventListener('resize', syncSitesHeight);
 </script>
 
 </body>

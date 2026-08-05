@@ -14,6 +14,7 @@ placeholders replaced from the user's search configuration.
 
 import json
 import logging
+import os
 import re
 import sqlite3
 import sys
@@ -186,7 +187,8 @@ def collect_page_intelligence(url: str, headless: bool = True) -> dict:
                 pass
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        _exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+        browser = p.chromium.launch(headless=headless, **({"executable_path": _exe} if _exe else {}))
         page = browser.new_page(user_agent=UA)
         page.on("response", on_response)
 
