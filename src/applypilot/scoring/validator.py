@@ -130,6 +130,38 @@ def sanitize_text(text: str) -> str:
     return text.strip()
 
 
+def strip_outcome_clauses(data: dict) -> None:
+    """Strip vague post-comma outcome gerund clauses from bullets in-place.
+
+    Keeps quantified clauses (those containing a number) since they're evidence,
+    not filler. E.g. "reducing latency by 40%" stays; "ensuring reliability" goes.
+    Called before validation so the LLM's habit of appending these never triggers errors.
+    """
+    for entry in data.get("experience", []):
+        entry["bullets"] = [_strip_bullet_outcome(b) for b in entry.get("bullets", [])]
+    for entry in data.get("projects", []):
+        entry["bullets"] = [_strip_bullet_outcome(b) for b in entry.get("bullets", [])]
+
+
+def _strip_bullet_outcome(bullet: str) -> str:
+    """Remove a vague outcome clause from a single bullet; keep quantified ones."""
+    clauses = re.split(r",\s*", bullet)
+    if len(clauses) <= 1:
+        return bullet
+    result = [clauses[0]]
+    for clause in clauses[1:]:
+        lowered = clause.strip().lower()
+        starts_with_marker = any(lowered.startswith(m) for m in OUTCOME_MARKERS)
+        has_number = bool(re.search(r"\d", clause))
+        if starts_with_marker and not has_number:
+            break
+        result.append(clause)
+    rebuilt = ", ".join(result).rstrip(" ,;")
+    if rebuilt and rebuilt[-1] not in ".!?":
+        rebuilt += "."
+    return rebuilt
+
+
 def unsupported_outcome_clause(bullet: str, original_text: str) -> str | None:
     """Find a result clause whose substantive terms are not source-grounded.
 

@@ -173,11 +173,21 @@
             ]
           }:''${LD_LIBRARY_PATH:-}"
 
+          if [ -f "$PWD/.venv/bin/activate" ]; then
+            source "$PWD/.venv/bin/activate"
+          fi
+
           echo "ApplyPilot development shell"
           echo "Python: $(python --version 2>&1)"
           echo "pytest: $(pytest --version 2>&1)"
           echo "Source tree: $PWD/src"
           echo "Run 'uv sync --extra dev' to install the full project into .venv."
+
+          if [ -f "$PWD/.venv/bin/python" ] && ! "$PWD/.venv/bin/python" -c "import jobspy" 2>/dev/null; then
+            echo "Installing python-jobspy into .venv (required for LinkedIn/Indeed)..."
+            uv pip install --python "$PWD/.venv/bin/python" --no-deps python-jobspy
+            uv pip install --python "$PWD/.venv/bin/python" pydantic tls-client requests markdownify regex
+          fi
         '';
       };
     };

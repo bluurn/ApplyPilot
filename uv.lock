@@ -71,7 +71,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "baml-py", marker = "extra == 'baml'", specifier = ">=0.223.0" },
+    { name = "baml-py", marker = "extra == 'baml'", specifier = "==0.223.0" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "httpx", specifier = ">=0.24" },
     { name = "pandas", specifier = ">=2.0" },

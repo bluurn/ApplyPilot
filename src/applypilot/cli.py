@@ -38,8 +38,17 @@ VALID_STAGES = ("discover", "enrich", "score", "tailor", "cover", "pdf")
 
 def _bootstrap() -> None:
     """Common setup: load env, create dirs, init DB."""
+    import os
     from applypilot.config import load_env, ensure_dirs
     from applypilot.database import init_db
+
+    if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+        console.print(
+            "[red]Error:[/red] Playwright environment not detected. "
+            "Run the pipeline inside the nix dev shell:\n"
+            "  [bold]nix develop --command python -m applypilot run ...[/bold]"
+        )
+        raise typer.Exit(1)
 
     load_env()
     ensure_dirs()

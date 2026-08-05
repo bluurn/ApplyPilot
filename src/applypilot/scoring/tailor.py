@@ -25,6 +25,7 @@ from applypilot.scoring.validator import (
     BANNED_WORDS,
     sanitize_text,
     skill_is_allowed,
+    strip_outcome_clauses,
     validate_json_fields,
 )
 
@@ -101,6 +102,9 @@ actual technologies and dates in project subtitles; if either is unavailable,
 leave the subtitle empty. Never write placeholder text such as "Tech | Dates".
 
 BULLETS: Strong verb + what you built + quantified impact. Vary verbs (Built, Designed, Implemented, Reduced, Automated, Deployed, Operated, Optimized). Most relevant first. Max 4 per section.
+- NEVER append a vague outcome clause after a comma. Do NOT write patterns like "Built X, ensuring reliability" or "Deployed Y, enhancing performance" or "Implemented Z, improving maintainability". This is an automatic validation failure.
+- If an outcome matters, state it as the main result with a number or specific tool: GOOD: "Reduced deploy time from 45 min to 8 min"; BAD: "Streamlined deployments, improving efficiency"
+- Banned post-comma gerunds (= instant rejection): ensuring, enhancing, improving, streamlining, optimizing, reducing, accelerating, strengthening, minimizing, increasing — never use these after a comma.
 
 ## VOICE:
 - Write like a real engineer. Short, direct.
@@ -527,6 +531,9 @@ def tailor_resume(
         # manufacture one from selected-impact bullets.
         if not re.search(r"(?im)^\s*(selected\s+)?projects\s*:?\s*$", resume_text):
             data["projects"] = []
+
+        # Strip vague post-comma outcome clauses before validation.
+        strip_outcome_clauses(data)
 
         # Layer 1: Validate JSON fields
         validation = validate_json_fields(
