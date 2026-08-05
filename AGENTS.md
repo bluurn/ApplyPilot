@@ -146,7 +146,7 @@ ruff check .
 pyright
 ```
 
-The Nix development shell (`nix develop`) provides Python, uv, pytest, ruff, pyright, Chromium, and Playwright with `PYTHONPATH=$PWD/src:$PYTHONPATH` set.
+The devenv shell (`devenv shell`) provides Python, uv, pytest, ruff, pyright, Chromium, and Playwright with `PYTHONPATH=$DEVENV_ROOT/src:$PYTHONPATH` set.
 
 ## Engineering Guidelines
 
