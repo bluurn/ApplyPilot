@@ -58,6 +58,7 @@ def evaluate_location(
     reject_non_remote: list[str],
     context: str | None = None,
     explicit_geography: bool = False,
+    relocation_eligible: bool = True,
 ) -> LocationDecision:
     """Evaluate explicit geography, remote restrictions, and relocation signals."""
     if not location:
@@ -98,14 +99,18 @@ def evaluate_location(
 
     # A role with at least one viable office/location remains useful even when
     # the same posting lists additional incompatible locations.
-    if accepted:
+    # For non-remote jobs, a specific reject pattern (e.g. "Berlin") overrides
+    # a broad accept match (e.g. "Germany") so "Berlin, Germany" office jobs
+    # don't slip through via the "Germany" accept entry.
+    if accepted and (is_remote or not rejected):
         reason = "remote_compatible" if is_remote else "location_accepted"
         return LocationDecision(True, reason)
 
-    offers_relocation = any(marker in combined for marker in relocation_markers)
-    denies_relocation = any(marker in combined for marker in relocation_denials)
-    if offers_relocation and not denies_relocation:
-        return LocationDecision(True, "relocation_supported")
+    if relocation_eligible:
+        offers_relocation = any(marker in combined for marker in relocation_markers)
+        denies_relocation = any(marker in combined for marker in relocation_denials)
+        if offers_relocation and not denies_relocation:
+            return LocationDecision(True, "relocation_supported")
 
     if is_remote:
         if rejected:

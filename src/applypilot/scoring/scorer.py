@@ -86,6 +86,7 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
     eligible = 0
     rejected = 0
 
+    relocation_eligible = search_cfg.get("relocation_eligible", True)
     for job in rows:
         decision = evaluate_location(
             job.get("location"),
@@ -93,6 +94,7 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
             reject,
             job.get("full_description") or job.get("description"),
             explicit_geography=_has_explicit_geography(job.get("location")),
+            relocation_eligible=relocation_eligible,
         )
         conn.execute(
             """
