@@ -374,10 +374,12 @@ def render_pdf(html: str, output_path: str) -> None:
         html: Complete HTML string.
         output_path: Path to write the PDF file.
     """
+    import os
     from playwright.sync_api import sync_playwright
 
+    _exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(**({"executable_path": _exe} if _exe else {}))
         page = browser.new_page()
         page.set_content(html, wait_until="networkidle")
         page.pdf(

@@ -509,7 +509,12 @@ def build_prompt(job: dict, tailored_resume: str,
 
     # Dry-run: override submit instruction
     if dry_run:
-        submit_instruction = "IMPORTANT: Do NOT click the final Submit/Apply button. Review the form, verify all fields, then output RESULT:APPLIED with a note that this was a dry run."
+        submit_instruction = (
+            "⛔ DRY RUN MODE — DO NOT CLICK SUBMIT ⛔\n"
+            "This is a validation pass only. Fill in all fields as normal so the form is ready, "
+            "but STOP before the final Submit/Apply button. Do NOT click it under any circumstances. "
+            "After verifying the form is correctly populated, output RESULT:APPLIED (dry run — not submitted)."
+        )
     else:
         submit_instruction = "BEFORE clicking Submit/Apply, take a snapshot and review EVERY field on the page. Verify all data matches the APPLICANT PROFILE and TAILORED RESUME -- name, email, phone, location, work auth, resume uploaded, cover letter if applicable. If anything is wrong or missing, fix it FIRST. Only click Submit after confirming everything is correct."
 
