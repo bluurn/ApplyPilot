@@ -253,7 +253,7 @@ def mark_job(url: str, status: str, reason: str | None = None) -> None:
 
     Args:
         url: Job URL to mark.
-        status: Either 'applied' or 'failed'.
+        status: 'applied', 'failed', or 'skip'.
         reason: Failure reason (only for status='failed').
     """
     conn = get_connection()
@@ -262,14 +262,19 @@ def mark_job(url: str, status: str, reason: str | None = None) -> None:
         conn.execute("""
             UPDATE jobs SET apply_status = 'applied', applied_at = ?,
                            apply_error = NULL, agent_id = NULL
-            WHERE url = ?
-        """, (now, url))
+            WHERE url = ? OR application_url = ?
+        """, (now, url, url))
+    elif status == "skip":
+        conn.execute("""
+            UPDATE jobs SET apply_status = 'skip', apply_error = NULL, agent_id = NULL
+            WHERE url = ? OR application_url = ?
+        """, (url, url))
     else:
         conn.execute("""
             UPDATE jobs SET apply_status = 'failed', apply_error = ?,
                            apply_attempts = 99, agent_id = NULL
-            WHERE url = ?
-        """, (reason or "manual", url))
+            WHERE url = ? OR application_url = ?
+        """, (reason or "manual", url, url))
     conn.commit()
 
 
@@ -285,7 +290,7 @@ def reset_failed() -> int:
                        apply_attempts = 0, agent_id = NULL
         WHERE apply_status = 'failed'
           OR (apply_status IS NOT NULL AND apply_status != 'applied'
-              AND apply_status != 'in_progress')
+              AND apply_status != 'in_progress' AND apply_status != 'skip')
     """)
     conn.commit()
     return cursor.rowcount

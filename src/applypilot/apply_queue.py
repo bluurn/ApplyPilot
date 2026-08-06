@@ -67,7 +67,10 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
         color = _score_color(score)
         cl_text = _read_text(job.get("cover_letter_path"))
         pdf = _pdf_path(job.get("tailored_resume_path"))
+        cl_pdf = _pdf_path(job.get("cover_letter_path"))
         mark_cmd = f"python -m applypilot apply --mark-applied '{url}'"
+        dismiss_cmd = f"python -m applypilot apply --dismiss '{url}'"
+        card_id = f"card-{abs(hash(url)) % 100000}"
         tag_html = f'<span class="tag">{tag}</span>' if tag else ""
 
         cl_section = ""
@@ -77,7 +80,7 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
             <textarea class="cl-box" readonly>{cl_text}</textarea>"""
 
         return f"""
-        <div class="card" id="card-{abs(hash(url)) % 100000}">
+        <div class="card" id="{card_id}">
           <div class="card-header">
             <div class="score-badge" style="background:{color}">{score}/10</div>
             <div class="job-info">
@@ -86,15 +89,19 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
             </div>
             <div class="ats-label">{label}</div>
             {tag_html}
+            <button class="btn-x" title="Dismiss — copies command to clipboard" onclick="dismissCard('{card_id}', this, `{dismiss_cmd}`)">✕</button>
           </div>
           <div class="card-body">
             <div class="actions">
               <a class="btn btn-apply" href="{url}" target="_blank">Open Application ↗</a>
               <a class="btn btn-pdf" href="file://{pdf}" target="_blank">Resume PDF ↗</a>
+              <a class="btn btn-pdf" href="file://{cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
             </div>
             {cl_section}
             <div class="section-label">After applying, mark done:</div>
             <div class="cmd-box">{mark_cmd}</div>
+            <div class="section-label" style="margin-top:0.6rem">Not a fit? Dismiss:</div>
+            <div class="cmd-box" style="color:#f87171">{dismiss_cmd}</div>
           </div>
         </div>"""
 
@@ -141,6 +148,8 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
   .stat {{ text-align: center; }}
   .stat-num {{ font-size: 1.5rem; font-weight: 700; color: #f8fafc; }}
   .stat-lbl {{ font-size: 0.75rem; color: #64748b; margin-top: 0.15rem; }}
+  .btn-x {{ background: none; border: none; color: #475569; font-size: 1rem; cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 4px; flex-shrink: 0; line-height: 1; }}
+  .btn-x:hover {{ color: #f87171; background: #1e1e2e; }}
 </style>
 </head>
 <body>
@@ -172,6 +181,18 @@ function copyText(btn) {{
     setTimeout(() => {{ btn.textContent = 'Copy'; btn.classList.remove('copied'); }}, 2000);
   }});
 }}
+function dismissCard(id, btn, cmd) {{
+  navigator.clipboard.writeText(cmd);
+  const card = document.getElementById(id);
+  btn.textContent = '✓';
+  btn.style.color = '#94a3b8';
+  card.style.transition = 'opacity 0.35s, max-height 0.4s, margin 0.4s';
+  card.style.opacity = '0';
+  card.style.overflow = 'hidden';
+  card.style.maxHeight = card.scrollHeight + 'px';
+  setTimeout(() => {{ card.style.maxHeight = '0'; card.style.marginBottom = '0'; }}, 350);
+  setTimeout(() => {{ card.remove(); }}, 750);
+}}
 </script>
 </body>
 </html>"""
@@ -189,6 +210,7 @@ def main() -> None:
           AND eligibility_allowed = 1
           AND fit_score >= 7
           AND (apply_status IS NULL OR (apply_status = 'failed' AND apply_attempts < 99))
+          AND apply_status IS NOT 'skip'
         ORDER BY fit_score DESC, discovery_score DESC
     """).fetchall()]
 
@@ -210,7 +232,9 @@ def main() -> None:
     print(f"  {len(ready)} ready jobs + {len(manual)} Grafana Labs (email verify)")
 
     try:
-        subprocess.Popen(["xdg-open", str(out)])
+        import os
+        env = {k: v for k, v in os.environ.items() if k != "LD_LIBRARY_PATH"}
+        subprocess.Popen(["xdg-open", str(out)], env=env)
     except Exception:
         pass
 

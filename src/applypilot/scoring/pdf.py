@@ -8,7 +8,7 @@ import logging
 from html import escape
 from pathlib import Path
 
-from applypilot.config import TAILORED_DIR
+from applypilot.config import TAILORED_DIR, COVER_LETTER_DIR
 
 log = logging.getLogger(__name__)
 
@@ -445,13 +445,12 @@ def batch_convert(limit: int = 50) -> int:
         log.warning("Tailored directory does not exist: %s", TAILORED_DIR)
         return 0
 
-    txt_files = sorted(TAILORED_DIR.glob("*.txt"))
-    # Exclude _JOB.txt and _CL.txt files from resume conversion
-    # (they get their own conversion calls)
-    candidates = [
-        f for f in txt_files
+    resume_txts = [
+        f for f in sorted(TAILORED_DIR.glob("*.txt"))
         if not f.name.endswith("_JOB.txt")
     ]
+    cover_txts = sorted(COVER_LETTER_DIR.glob("*_CL.txt")) if COVER_LETTER_DIR.exists() else []
+    candidates = resume_txts + cover_txts
 
     # Filter to those without a corresponding PDF
     to_convert: list[Path] = []

@@ -178,6 +178,7 @@ def apply(
     mark_failed: Optional[str] = typer.Option(None, "--mark-failed", help="Manually mark a job URL as failed (provide URL)."),
     fail_reason: Optional[str] = typer.Option(None, "--fail-reason", help="Reason for --mark-failed."),
     reset_failed: bool = typer.Option(False, "--reset-failed", help="Reset all failed jobs for retry."),
+    dismiss: Optional[str] = typer.Option(None, "--dismiss", help="Permanently hide a job URL from the apply queue."),
 ) -> None:
     """Launch auto-apply to submit job applications."""
     _bootstrap()
@@ -197,6 +198,12 @@ def apply(
         from applypilot.apply.launcher import mark_job
         mark_job(mark_failed, "failed", reason=fail_reason)
         console.print(f"[yellow]Marked as failed:[/yellow] {mark_failed} ({fail_reason or 'manual'})")
+        return
+
+    if dismiss:
+        from applypilot.apply.launcher import mark_job
+        mark_job(dismiss, "skip")
+        console.print(f"[dim]Dismissed (hidden from queue):[/dim] {dismiss}")
         return
 
     if reset_failed:

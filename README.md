@@ -73,9 +73,10 @@ applypilot run                  # discover > enrich > score > tailor > cover let
 applypilot apply-queue          # generate ~/.applypilot/apply_queue.html
 # open apply_queue.html in browser — work through each job manually
 applypilot apply --mark-applied URL   # track each submission in the DB
+applypilot apply --dismiss URL        # hide a job from the queue permanently
 ```
 
-The apply queue page shows each job as a card with a direct link to the ATS form, the cover letter text in a one-click copy box, a button to open the tailored resume PDF, and the `--mark-applied` command to run after you submit. Progress is tracked in the same database as the automated pipeline.
+The apply queue page shows each job as a card with a direct link to the ATS form, the cover letter text in a one-click copy box, a button to open the tailored resume PDF, and the `--mark-applied` command to run after you submit. Click the **✕** button on any card to instantly hide it and copy the `--dismiss` command to your clipboard. Progress is tracked in the same database as the automated pipeline.
 
 **When auto-apply is blocked by a specific ATS**, add it to `~/.applypilot/config/sites.yaml` so the pipeline skips it automatically and leaves those jobs for the manual queue:
 
@@ -218,6 +219,7 @@ Jobs blocked by any of the above are marked with a permanent failure reason and 
 # Utility modes (no Chrome/Claude needed)
 applypilot apply --mark-applied URL    # manually mark a job as applied
 applypilot apply --mark-failed URL     # manually mark a job as failed
+applypilot apply --dismiss URL         # permanently hide a job from the apply queue
 applypilot apply --reset-failed        # reset all failed jobs for retry
 applypilot apply --gen --url URL       # generate prompt file for manual debugging
 ```
@@ -246,6 +248,7 @@ applypilot apply --dry-run              # Fill forms without submitting
 applypilot apply --continuous           # Run forever, polling for new jobs
 applypilot apply --headless             # Headless browser mode
 applypilot apply --url URL              # Apply to a specific job
+applypilot apply --dismiss URL         # Permanently hide a job from the apply queue
 applypilot apply-queue                  # Generate apply_queue.html for manual submission
 applypilot workday-health               # Validate configured Workday CXS endpoints
 applypilot today                         # Daily ranked job-search briefing
