@@ -114,6 +114,11 @@ def run(
         "--shortlist",
         help="For tailoring, process only explicitly shortlisted jobs.",
     ),
+    tailor_limit: int = typer.Option(
+        20,
+        "--tailor-limit",
+        help="Max jobs to tailor per run. Use 0 for no limit.",
+    ),
 ) -> None:
     """Run pipeline stages: discover, enrich, score, tailor, cover, pdf."""
     _bootstrap()
@@ -157,6 +162,7 @@ def run(
         workers=workers,
         validation_mode=validation,
         shortlist_only=shortlist,
+        tailor_limit=tailor_limit or None,
     )
 
     if result.get("errors"):

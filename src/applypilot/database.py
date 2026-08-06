@@ -444,7 +444,7 @@ def store_jobs(conn: sqlite3.Connection, jobs: list[dict],
 def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
                       stage: str = "discovered",
                       min_score: int | None = None,
-                      limit: int = 100,
+                      limit: int | None = 100,
                       shortlisted_only: bool = False) -> list[dict]:
     """Fetch jobs filtered by pipeline stage.
 
@@ -500,7 +500,7 @@ def get_jobs_by_stage(conn: sqlite3.Connection | None = None,
         "ORDER BY is_watchlist DESC, discovery_score DESC NULLS LAST, "
         "fit_score DESC NULLS LAST, discovered_at DESC"
     )
-    if limit > 0:
+    if limit:
         query += " LIMIT ?"
         params.append(limit)
 

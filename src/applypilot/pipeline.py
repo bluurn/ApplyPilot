@@ -179,6 +179,7 @@ def _run_tailor(
     min_score: int = 7,
     validation_mode: str = "normal",
     shortlist_only: bool = False,
+    tailor_limit: int | None = 20,
 ) -> dict:
     """Stage: Resume tailoring — generate tailored resumes for high-fit jobs."""
     try:
@@ -187,6 +188,7 @@ def _run_tailor(
             min_score=min_score,
             validation_mode=validation_mode,
             shortlist_only=shortlist_only,
+            limit=tailor_limit,
         )
         return {"status": "ok"}
     except Exception as e:
@@ -391,6 +393,7 @@ def _run_sequential(
     workers: int = 1,
     validation_mode: str = "normal",
     shortlist_only: bool = False,
+    tailor_limit: int | None = 20,
 ) -> dict:
     """Execute stages one at a time (original behavior)."""
     results: list[dict] = []
@@ -414,6 +417,7 @@ def _run_sequential(
                 kwargs["validation_mode"] = validation_mode
             if name == "tailor":
                 kwargs["shortlist_only"] = shortlist_only
+                kwargs["tailor_limit"] = tailor_limit
             if name in ("discover", "enrich"):
                 kwargs["workers"] = workers
             result = runner(**kwargs)
@@ -518,6 +522,7 @@ def run_pipeline(
     workers: int = 1,
     validation_mode: str = "normal",
     shortlist_only: bool = False,
+    tailor_limit: int | None = 20,
 ) -> dict:
     """Run pipeline stages.
 
@@ -581,6 +586,7 @@ def run_pipeline(
             workers=workers,
             validation_mode=validation_mode,
             shortlist_only=shortlist_only,
+            tailor_limit=tailor_limit,
         )
 
     # Summary table

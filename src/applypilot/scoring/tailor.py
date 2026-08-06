@@ -583,7 +583,7 @@ def tailor_resume(
 
 # ── Batch Entry Point ────────────────────────────────────────────────────
 
-def run_tailoring(min_score: int = 7, limit: int = 20,
+def run_tailoring(min_score: int = 7, limit: int | None = 20,
                   validation_mode: str = "normal",
                   shortlist_only: bool = False) -> dict:
     """Generate tailored resumes for high-scoring jobs.
