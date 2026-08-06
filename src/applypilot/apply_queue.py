@@ -98,9 +98,9 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
               <a class="btn btn-pdf" href="file://{cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
             </div>
             {cl_section}
-            <div class="section-label">After applying, mark done:</div>
+            <div class="section-label">After applying, mark done: <button class="copy-btn" onclick="copyCmd(this, `{mark_cmd}`)">Copy</button></div>
             <div class="cmd-box">{mark_cmd}</div>
-            <div class="section-label" style="margin-top:0.6rem">Not a fit? Dismiss:</div>
+            <div class="section-label" style="margin-top:0.6rem">Not a fit? Dismiss: <button class="copy-btn" onclick="copyCmd(this, `{dismiss_cmd}`)">Copy</button></div>
             <div class="cmd-box" style="color:#f87171">{dismiss_cmd}</div>
           </div>
         </div>"""
@@ -176,6 +176,13 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
 function copyText(btn) {{
   const ta = btn.closest('.section-label').nextElementSibling;
   navigator.clipboard.writeText(ta.value).then(() => {{
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {{ btn.textContent = 'Copy'; btn.classList.remove('copied'); }}, 2000);
+  }});
+}}
+function copyCmd(btn, text) {{
+  navigator.clipboard.writeText(text).then(() => {{
     btn.textContent = 'Copied!';
     btn.classList.add('copied');
     setTimeout(() => {{ btn.textContent = 'Copy'; btn.classList.remove('copied'); }}, 2000);
