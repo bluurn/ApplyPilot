@@ -63,10 +63,33 @@ input and install `inputs.applypilot.packages.${system}.default`.
 
 Runs all 6 stages, from job discovery to autonomous application submission. This is the full power of ApplyPilot.
 
+### Semi-Automatic (discovery + tailoring + manual apply queue)
+**Requires:** Python 3.11+, Gemini API key (free)
+
+Runs stages 1–5 automatically, then generates a browser-based apply queue for manual submission. Recommended when auto-apply is blocked by ATS friction (Greenhouse email verification, CAPTCHA walls, SSO-only login).
+
+```bash
+applypilot run                  # discover > enrich > score > tailor > cover letters > PDFs
+applypilot apply-queue          # generate ~/.applypilot/apply_queue.html
+# open apply_queue.html in browser — work through each job manually
+applypilot apply --mark-applied URL   # track each submission in the DB
+```
+
+The apply queue page shows each job as a card with a direct link to the ATS form, the cover letter text in a one-click copy box, a button to open the tailored resume PDF, and the `--mark-applied` command to run after you submit. Progress is tracked in the same database as the automated pipeline.
+
+**When auto-apply is blocked by a specific ATS**, add it to `~/.applypilot/config/sites.yaml` so the pipeline skips it automatically and leaves those jobs for the manual queue:
+
+```yaml
+# ~/.applypilot/config/sites.yaml
+manual_ats:
+  - "boards.greenhouse.io/mycompany"   # email verification after submit
+  - "ibegin.tcsapps.com"              # unsolvable CAPTCHA
+```
+
 ### Discovery + Tailoring Only
 **Requires:** Python 3.11+, Gemini API key (free)
 
-Runs stages 1-5: discovers jobs, scores them, tailors your resume, generates cover letters. You submit applications manually with the AI-prepared materials.
+Runs stages 1–5: discovers jobs, scores them, tailors your resume, generates cover letters. You submit applications manually with the AI-prepared materials.
 
 ---
 
@@ -180,6 +203,17 @@ Claude Code launches a Chrome instance, navigates to each application page, dete
 
 The Playwright MCP server is configured automatically at runtime per worker. No manual MCP setup needed.
 
+**Known blockers** that cause automatic submission to fail:
+
+| Blocker | Behaviour | Fix |
+|---------|-----------|-----|
+| Greenhouse email verification | Form submits but requires an 8-char code sent to your inbox | Add to `manual_ats` in `sites.yaml`; apply manually |
+| Unsolvable CAPTCHA | hCaptcha / Cloudflare challenge in headless mode | Add CapSolver key, or add to `manual_ats` |
+| SSO-only login | Google / Microsoft OAuth wall | Marked `sso_required`; cannot be automated |
+| Account-required ATS | Must create an account the agent can't verify | Marked `account_required`; apply manually |
+
+Jobs blocked by any of the above are marked with a permanent failure reason and skipped on retry. Use the apply queue for these.
+
 ```bash
 # Utility modes (no Chrome/Claude needed)
 applypilot apply --mark-applied URL    # manually mark a job as applied
@@ -212,6 +246,7 @@ applypilot apply --dry-run              # Fill forms without submitting
 applypilot apply --continuous           # Run forever, polling for new jobs
 applypilot apply --headless             # Headless browser mode
 applypilot apply --url URL              # Apply to a specific job
+applypilot apply-queue                  # Generate apply_queue.html for manual submission
 applypilot workday-health               # Validate configured Workday CXS endpoints
 applypilot today                         # Daily ranked job-search briefing
 applypilot today --days 3 --limit 20     # Adjust recency window and section size

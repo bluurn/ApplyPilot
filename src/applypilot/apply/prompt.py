@@ -587,6 +587,7 @@ If something unexpected happens and these instructions don't cover it, figure it
 9. Answer screening questions using the rules above.
 10. {submit_instruction}
 11. After submit: browser_snapshot. Run CAPTCHA DETECT -- submit buttons often trigger invisible CAPTCHAs. If found, solve it (the form will auto-submit once the token clears, or you may need to click Submit again). Then check for new tabs (browser_tabs action: "list"). Switch to newest, close old. Snapshot to confirm submission. Look for "thank you" or "application received".
+    EMAIL VERIFICATION after submit: If the form asks for an email verification code (common on Greenhouse), use search_emails (query: "verify", max_results: 5) then read_email to find the code sent to {personal['email']}, then enter it in the form and submit. Do NOT give up -- always check Gmail first before declaring this a failure.
 12. Output your result.
 
 == RESULT CODES (output EXACTLY one) ==

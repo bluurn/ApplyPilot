@@ -146,7 +146,7 @@ def acquire_job(target_url: str | None = None, min_score: int = 7,
             conn.rollback()
             return None
 
-        # Skip manual ATS sites (unsolvable CAPTCHAs)
+        # Skip manual ATS sites (unsolvable CAPTCHAs) — mark and loop to next
         from applypilot.config import is_manual_ats
         apply_url = row["application_url"] or row["url"]
         if is_manual_ats(apply_url):
@@ -156,7 +156,7 @@ def acquire_job(target_url: str | None = None, min_score: int = 7,
             )
             conn.commit()
             logger.info("Skipping manual ATS: %s", row["url"][:80])
-            return None
+            return acquire_job(target_url=target_url, min_score=min_score, worker_id=worker_id)
 
         now = datetime.now(timezone.utc).isoformat()
         conn.execute("""

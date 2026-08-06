@@ -579,6 +579,16 @@ def dashboard() -> None:
     open_dashboard()
 
 
+@app.command("apply-queue")
+def apply_queue() -> None:
+    """Generate apply_queue.html: a manual apply checklist with cover letters and resume links."""
+    _bootstrap()
+
+    from applypilot.apply_queue import main as _aq_main
+
+    _aq_main()
+
+
 @app.command()
 def doctor() -> None:
     """Check your setup and diagnose missing requirements."""
