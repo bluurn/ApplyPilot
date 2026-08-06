@@ -98,7 +98,11 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
               <a class="btn btn-pdf" href="file://{cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
             </div>
             {cl_section}
-            <div class="section-label">After applying, mark done: <button class="copy-btn" onclick="copyCmd(this, `{mark_cmd}`)">Copy</button></div>
+            <div class="section-label">Resume PDF path: <button class="copy-btn" onclick="copyCmd(this, `{pdf}`)">Copy</button></div>
+            <div class="cmd-box">{pdf}</div>
+            <div class="section-label" style="margin-top:0.6rem">Cover Letter PDF path: <button class="copy-btn" onclick="copyCmd(this, `{cl_pdf}`)">Copy</button></div>
+            <div class="cmd-box">{cl_pdf}</div>
+            <div class="section-label" style="margin-top:0.6rem">After applying, mark done: <button class="copy-btn" onclick="copyCmd(this, `{mark_cmd}`)">Copy</button></div>
             <div class="cmd-box">{mark_cmd}</div>
             <div class="section-label" style="margin-top:0.6rem">Not a fit? Dismiss: <button class="copy-btn" onclick="copyCmd(this, `{dismiss_cmd}`)">Copy</button></div>
             <div class="cmd-box" style="color:#f87171">{dismiss_cmd}</div>
