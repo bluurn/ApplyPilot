@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from applypilot import config
 from applypilot.database import get_connection, init_db
-from applypilot.discovery.filters import evaluate_location, title_is_excluded
+from applypilot.discovery.filters import company_is_excluded, evaluate_location, title_is_excluded
 from applypilot.discovery.watchlist import (
     update_existing_watchlist,
     watchlist_fields,
@@ -292,6 +292,7 @@ def _run_one_search(
     reject_locs: list[str],
     exclude_titles: list[str],
     glassdoor_map: dict,
+    exclude_companies: list[str] | None = None,
 ) -> dict:
     """Run a single search query and store results in DB."""
     s = search
@@ -339,8 +340,16 @@ def _run_one_search(
             "label": label,
         }
 
-    # Filter by configured title exclusions and location before storing
+    # Filter by configured title/company exclusions and location before storing
     before = len(df)
+    if exclude_companies:
+        df = df[~df.apply(
+            lambda row: company_is_excluded(
+                str(row.get("company", "")) if str(row.get("company", "")) != "nan" else None,
+                exclude_companies,
+            ),
+            axis=1,
+        )]
     df = df[~df.apply(
         lambda row: title_is_excluded(
             str(row.get("title", "")) if str(row.get("title", "")) != "nan" else None,
@@ -483,6 +492,7 @@ def _full_crawl(
     glassdoor_map = search_cfg.get("glassdoor_location_map", {})
     accept_locs, reject_locs = _load_location_config(search_cfg)
     exclude_titles = search_cfg.get("exclude_titles", [])
+    exclude_companies = search_cfg.get("exclude_companies", [])
 
     if tiers:
         queries = [q for q in queries if q.get("tier") in tiers]
@@ -519,6 +529,7 @@ def _full_crawl(
             s, sites, results_per_site, hours_old,
             proxy_config, defaults, max_retries,
             accept_locs, reject_locs, exclude_titles, glassdoor_map,
+            exclude_companies,
         )
         completed += 1
         total_new += result["new"]

@@ -19,7 +19,7 @@ from html.parser import HTMLParser
 
 from applypilot import config
 from applypilot.database import get_connection, init_db
-from applypilot.discovery.filters import evaluate_location, title_is_excluded
+from applypilot.discovery.filters import company_is_excluded, evaluate_location, title_is_excluded
 from applypilot.discovery.watchlist import (
     prioritize_registry,
     update_existing_watchlist,
@@ -483,6 +483,7 @@ def scrape_employers(
     accept_locs: list[str] | None = None,
     reject_locs: list[str] | None = None,
     exclude_titles: list[str] | None = None,
+    exclude_companies: list[str] | None = None,
     workers: int = 1,
     seen_source_ids: set[str] | None = None,
 ) -> dict:
@@ -512,7 +513,10 @@ def scrape_employers(
     errors = 0
     t0 = time.time()
 
-    valid_keys = [k for k in employer_keys if k in employers]
+    valid_keys = [
+        k for k in employer_keys
+        if k in employers and not company_is_excluded(employers[k].get("name"), exclude_companies or [])
+    ]
 
     if workers > 1 and len(valid_keys) > 1:
         # Parallel mode
@@ -595,6 +599,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
     queries_cfg = search_cfg.get("queries", [])
     accept_locs, reject_locs = _load_location_filter(search_cfg)
     exclude_titles = search_cfg.get("exclude_titles", [])
+    exclude_companies = search_cfg.get("exclude_companies", [])
 
     configured_queries = search_cfg.get("workday_queries")
     if configured_queries:
@@ -640,6 +645,7 @@ def run_workday_discovery(employers: dict | None = None, workers: int = 1) -> di
             accept_locs=accept_locs,
             reject_locs=reject_locs,
             exclude_titles=exclude_titles,
+            exclude_companies=exclude_companies,
             workers=workers,
             seen_source_ids=seen_source_ids,
         )

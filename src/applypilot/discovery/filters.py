@@ -19,6 +19,14 @@ def title_is_excluded(title: str | None, patterns: list[str]) -> bool:
     return any(pattern.casefold() in normalized for pattern in patterns if pattern)
 
 
+def company_is_excluded(company: str | None, patterns: list[str]) -> bool:
+    """Return whether a company name matches a configured exclusion pattern."""
+    if not company:
+        return False
+    normalized = company.casefold()
+    return any(pattern.casefold() in normalized for pattern in patterns if pattern)
+
+
 def title_matches_queries(title: str | None, queries: list[str]) -> bool:
     """Match query terms in any order while ignoring seniority qualifiers."""
     if not title or not queries:

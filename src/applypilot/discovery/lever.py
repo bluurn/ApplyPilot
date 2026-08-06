@@ -16,6 +16,7 @@ from html.parser import HTMLParser
 from applypilot import config
 from applypilot.database import init_db
 from applypilot.discovery.filters import (
+    company_is_excluded,
     evaluate_location,
     title_is_excluded,
     title_matches_queries,
@@ -312,10 +313,14 @@ def run_lever_discovery(
                 errors += 1
                 log.error("%s: Lever API error: %s", sites[key]["name"], exc)
 
+    exclude_companies = search_cfg.get("exclude_companies", [])
     found = 0
     new = 0
     existing = 0
     for key, site in sites.items():
+        if company_is_excluded(site.get("name"), exclude_companies):
+            log.info("%s: skipped (excluded company)", site.get("name"))
+            continue
         raw_jobs = fetched.get(key)
         if raw_jobs is None:
             continue
