@@ -1,12 +1,12 @@
 class ExperienceDraft {
   header string
-  subtitle string
+  subtitle string?
   bullets string[]
 }
 
 class ProjectDraft {
   header string
-  subtitle string
+  subtitle string?
   bullets string[]
 }
 
@@ -19,39 +19,24 @@ class TailoredDraft {
   education string
 }
 
-client<llm> TailoringClient {
-  provider "openai"
-  options {
-    model "gpt-4o-mini"
-    temperature 0
-  }
-}
-
 function RewriteTailoredResume(
-  original_resume: string,
-  target_job: string,
-  fixed_experience: string,
-  fixed_skills: string
+  system_prompt: string,
+  resume: string,
+  job: string,
 ) -> TailoredDraft {
   client TailoringClient
   prompt #"
-    Rewrite only the supplied fixed resume content for the target job.
-
-    The experience entries and skills are fixed by the calling application.
-    Do not add, remove, rename, or reorder them. Rewrite only the summary and
-    bullet wording while preserving every factual claim, employer, date,
-    technology, and metric.
-
-    FIXED EXPERIENCE:
-    {{ fixed_experience }}
-
-    FIXED SKILLS:
-    {{ fixed_skills }}
+    {{ system_prompt }}
 
     ORIGINAL RESUME:
-    {{ original_resume }}
+    {{ resume }}
+
+    ---
 
     TARGET JOB:
-    {{ target_job }}
+    {{ job }}
+
+    Return the JSON:
+    {{ ctx.output_format }}
   "#
 }

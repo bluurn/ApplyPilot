@@ -401,6 +401,25 @@ def judge_tailored_resume(
         )},
     ]
 
+    if baml_adapter.enabled():
+        try:
+            result = baml_adapter.judge_tailored_resume(
+                judge_prompt, job_title, original_text, tailored_text
+            )
+            passed = bool(result.get("passed"))
+            issues = result.get("issues") or "none"
+            if not passed and _judge_skill_issue_is_grounded(issues, original_text, profile):
+                passed = True
+                issues = "none (judge skill claim reconciled against original resume)"
+            return {
+                "passed": passed,
+                "verdict": "PASS" if passed else "FAIL",
+                "issues": issues,
+                "raw": str(result),
+            }
+        except Exception as exc:
+            log.warning("BAML judge unavailable; falling back to direct client: %s", exc)
+
     client = get_client()
     response = client.chat(messages, max_tokens=512, temperature=0.1)
 
@@ -508,14 +527,9 @@ def tailor_resume(
 
         if baml_adapter.enabled():
             try:
-                raw = baml_adapter.rewrite(
-                    resume_text,
-                    job_text,
-                    resume_text,
-                    tailor_prompt_base,
-                )
-            except (ImportError, ModuleNotFoundError, RuntimeError) as exc:
-                log.warning("BAML backend unavailable; falling back to OpenAI client: %s", exc)
+                raw = baml_adapter.rewrite_tailored_resume(prompt, resume_text, job_text)
+            except Exception as exc:
+                log.warning("BAML tailor unavailable; falling back to direct client: %s", exc)
                 raw = client.chat(messages, max_tokens=2048, temperature=0.4)
         else:
             raw = client.chat(messages, max_tokens=2048, temperature=0.4)

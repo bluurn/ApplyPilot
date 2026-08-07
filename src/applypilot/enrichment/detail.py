@@ -25,6 +25,7 @@ from playwright.sync_api import sync_playwright
 from applypilot import config
 from applypilot.database import init_db
 from applypilot.llm import get_client
+from applypilot.scoring import baml_adapter
 from applypilot.enrichment.urls import resolve_url
 
 log = logging.getLogger(__name__)
@@ -337,10 +338,7 @@ def extract_description_deterministic(page) -> str | None:
 
 # -- Tier 3: LLM extraction -------------------------------------------------
 
-DETAIL_EXTRACT_PROMPT = """You are extracting job details from a single job posting page.
-
-PAGE URL: {url}
-PAGE TITLE: {title}
+_DETAIL_EXTRACT_SYSTEM = """You are extracting job details from a single job posting page.
 
 Find TWO things in the HTML below:
 1. The full job description text (responsibilities, requirements, etc.)
@@ -352,9 +350,15 @@ Rules:
 - If you cannot find one, set it to null
 
 Return ONLY valid JSON:
-{{"full_description": "the complete job description text here", "application_url": "https://..." or null}}
+{"full_description": "the complete job description text here", "application_url": "https://..." or null}
 
-No explanation, no markdown. Keep reasoning under 20 words.
+No explanation, no markdown. Keep reasoning under 20 words."""
+
+# Full single-string prompt for the non-BAML path.
+DETAIL_EXTRACT_PROMPT = _DETAIL_EXTRACT_SYSTEM + """
+
+PAGE URL: {url}
+PAGE TITLE: {title}
 
 HTML:
 {content}"""
@@ -428,21 +432,31 @@ def extract_with_llm(page, url: str) -> dict:
     max_input_chars = int(
         search_cfg.get("enrichment", {}).get("llm_max_input_chars", 12000)
     )
-    prompt = DETAIL_EXTRACT_PROMPT.format(
-        url=url,
-        title=title,
-        content=content[:max_input_chars],
-    )
+    page_context = f"PAGE URL: {url}\nPAGE TITLE: {title}\n\n{content[:max_input_chars]}"
+    prompt = DETAIL_EXTRACT_PROMPT.format(url=url, title=title, content=content[:max_input_chars])
 
     try:
-        client = get_client()
         t0 = time.time()
-        raw = client.ask(prompt, temperature=0.0, max_tokens=4096)
-        elapsed = time.time() - t0
-        log.info("LLM: %d chars in, %.1fs", len(prompt), elapsed)
-
-        from applypilot.discovery.smartextract import extract_json
-        result = extract_json(raw)
+        if baml_adapter.enabled():
+            try:
+                result = baml_adapter.extract_detail(_DETAIL_EXTRACT_SYSTEM, page_context)
+                elapsed = time.time() - t0
+                log.info("BAML detail: %.1fs", elapsed)
+            except Exception as exc:
+                log.warning("BAML detail unavailable; falling back to direct client: %s", exc)
+                client = get_client()
+                raw = client.ask(prompt, temperature=0.0, max_tokens=4096)
+                elapsed = time.time() - t0
+                log.info("LLM: %d chars in, %.1fs", len(prompt), elapsed)
+                from applypilot.discovery.smartextract import extract_json
+                result = extract_json(raw)
+        else:
+            client = get_client()
+            raw = client.ask(prompt, temperature=0.0, max_tokens=4096)
+            elapsed = time.time() - t0
+            log.info("LLM: %d chars in, %.1fs", len(prompt), elapsed)
+            from applypilot.discovery.smartextract import extract_json
+            result = extract_json(raw)
         desc = result.get("full_description")
         apply_url = result.get("application_url")
 

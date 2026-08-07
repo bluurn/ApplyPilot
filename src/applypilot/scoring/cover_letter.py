@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from applypilot.config import COVER_LETTER_DIR, RESUME_PATH, load_profile
 from applypilot.database import get_connection, get_jobs_by_stage
 from applypilot.llm import get_client
+from applypilot.scoring import baml_adapter
 from applypilot.scoring.validator import (
     BANNED_WORDS,
     LLM_LEAK_PHRASES,
@@ -193,7 +194,14 @@ def generate_cover_letter(
             )},
         ]
 
-        letter = client.chat(messages, max_tokens=1024, temperature=0.7)
+        if baml_adapter.enabled():
+            try:
+                letter = baml_adapter.generate_cover_letter(prompt, resume_text, job_text)
+            except Exception as exc:
+                log.warning("BAML cover letter unavailable; falling back to direct client: %s", exc)
+                letter = client.chat(messages, max_tokens=1024, temperature=0.7)
+        else:
+            letter = client.chat(messages, max_tokens=1024, temperature=0.7)
         letter = sanitize_text(letter)  # auto-fix em dashes, smart quotes
         letter = _strip_preamble(letter)  # remove any "Here is the letter:" prefix
         letter = _ensure_signoff(letter, profile)

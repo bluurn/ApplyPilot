@@ -17,6 +17,7 @@ from applypilot.config import RESUME_PATH
 from applypilot.database import get_connection
 from applypilot.discovery.filters import evaluate_location
 from applypilot.llm import get_client
+from applypilot.scoring import baml_adapter
 
 log = logging.getLogger(__name__)
 
@@ -258,7 +259,8 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
 
 # ── Scoring Prompt ────────────────────────────────────────────────────────
 
-SCORE_PROMPT = """You are a job fit evaluator. Given a candidate's resume and a job description, score how well the candidate fits the role.
+# Criteria shared between the direct and BAML paths.
+_SCORE_CRITERIA = """You are a job fit evaluator. Given a candidate's resume and a job description, score how well the candidate fits the role.
 
 SCORING CRITERIA:
 - 9-10: Perfect match. Candidate has direct experience in nearly all required skills and qualifications.
@@ -272,7 +274,10 @@ IMPORTANT FACTORS:
 - Consider transferable experience (automation, scripting, API work)
 - Factor in the candidate's project experience
 - Be realistic about experience level vs. job requirements (years of experience, seniority)
-- If the job's primary required tech stack is Java, Kotlin, PHP, C#, .NET, SAP, or ABAP, reduce the score by 2-3 points -- the candidate's strengths are in Python/Ruby/Elixir/Go/Rust/TypeScript and a role centered on these languages is a fundamental mismatch. Do not apply this penalty if they appear only as secondary tools or nice-to-haves.
+- If the job's primary required tech stack is Java, Kotlin, PHP, C#, .NET, SAP, or ABAP, reduce the score by 2-3 points -- the candidate's strengths are in Python/Ruby/Elixir/Go/Rust/TypeScript and a role centered on these languages is a fundamental mismatch. Do not apply this penalty if they appear only as secondary tools or nice-to-haves."""
+
+# Full prompt for the direct (non-BAML) path — includes explicit text format.
+SCORE_PROMPT = _SCORE_CRITERIA + """
 
 RESPOND IN EXACTLY THIS FORMAT (no other text):
 SCORE: [1-10]
@@ -327,12 +332,14 @@ def score_job(resume_text: str, job: dict) -> dict:
         f"DESCRIPTION:\n{(job.get('full_description') or '')[:6000]}"
     )
 
-    messages = [
-        {"role": "system", "content": SCORE_PROMPT},
-        {"role": "user", "content": f"RESUME:\n{resume_text}\n\n---\n\nJOB POSTING:\n{job_text}"},
-    ]
-
     try:
+        if baml_adapter.enabled():
+            return baml_adapter.score_job(_SCORE_CRITERIA, resume_text, job_text)
+
+        messages = [
+            {"role": "system", "content": SCORE_PROMPT},
+            {"role": "user", "content": f"RESUME:\n{resume_text}\n\n---\n\nJOB POSTING:\n{job_text}"},
+        ]
         client = get_client()
         response = client.chat(messages, max_tokens=512, temperature=0.2)
         return _parse_score_response(response)
