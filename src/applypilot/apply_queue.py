@@ -3,8 +3,12 @@
 import subprocess
 from pathlib import Path
 
+from rich.console import Console
+
 from applypilot import config
 from applypilot.database import get_connection
+
+console = Console()
 
 
 def _ats_label(url: str | None) -> str:
@@ -239,13 +243,15 @@ def main() -> None:
     html = build_html(ready, manual)
     out = config.APP_DIR / "apply_queue.html"
     out.write_text(html, encoding="utf-8")
-    print(f"Generated: {out}")
-    print(f"  {len(ready)} ready jobs + {len(manual)} Grafana Labs (email verify)")
+    console.print(f"[green]Apply queue written to {out}[/green]")
+    console.print(f"  {len(ready)} ready jobs + {len(manual)} Grafana Labs (email verify)")
+    console.print(f"  [dim]file://{out}[/dim]")
 
     try:
         import os
         env = {k: v for k, v in os.environ.items() if k != "LD_LIBRARY_PATH"}
         subprocess.Popen(["xdg-open", str(out)], env=env)
+        console.print("[dim]Opening in browser...[/dim]")
     except Exception:
         pass
 

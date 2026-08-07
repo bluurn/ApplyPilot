@@ -440,4 +440,10 @@ def open_dashboard(output_path: str | None = None) -> None:
     """
     path = generate_dashboard(output_path)
     console.print("[dim]Opening in browser...[/dim]")
-    webbrowser.open(f"file:///{path}")
+    try:
+        import os
+        import subprocess
+        env = {k: v for k, v in os.environ.items() if k != "LD_LIBRARY_PATH"}
+        subprocess.Popen(["xdg-open", f"file://{path}"], env=env)
+    except Exception:
+        webbrowser.open(f"file:///{path}")
