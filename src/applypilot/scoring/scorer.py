@@ -272,6 +272,7 @@ IMPORTANT FACTORS:
 - Consider transferable experience (automation, scripting, API work)
 - Factor in the candidate's project experience
 - Be realistic about experience level vs. job requirements (years of experience, seniority)
+- If the job's primary required tech stack is Java, Kotlin, PHP, C#, .NET, SAP, or ABAP, reduce the score by 2-3 points -- the candidate's strengths are in Python/Ruby/Elixir/Go/Rust/TypeScript and a role centered on these languages is a fundamental mismatch. Do not apply this penalty if they appear only as secondary tools or nice-to-haves.
 
 RESPOND IN EXACTLY THIS FORMAT (no other text):
 SCORE: [1-10]

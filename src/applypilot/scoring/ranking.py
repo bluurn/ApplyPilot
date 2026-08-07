@@ -40,6 +40,7 @@ PREFERRED_LANGUAGE_MARKERS = {
 UNPREFERRED_LANGUAGE_MARKERS = (
     "java",
     "kotlin",
+    "php",
     "c#",
     ".net",
     "dotnet",
