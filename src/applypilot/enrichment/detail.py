@@ -354,14 +354,6 @@ Return ONLY valid JSON:
 
 No explanation, no markdown. Keep reasoning under 20 words."""
 
-# Full single-string prompt for the non-BAML path.
-DETAIL_EXTRACT_PROMPT = _DETAIL_EXTRACT_SYSTEM + """
-
-PAGE URL: {url}
-PAGE TITLE: {title}
-
-HTML:
-{content}"""
 
 
 def extract_main_content(page) -> str:
@@ -433,7 +425,7 @@ def extract_with_llm(page, url: str) -> dict:
         search_cfg.get("enrichment", {}).get("llm_max_input_chars", 12000)
     )
     page_context = f"PAGE URL: {url}\nPAGE TITLE: {title}\n\n{content[:max_input_chars]}"
-    prompt = DETAIL_EXTRACT_PROMPT.format(url=url, title=title, content=content[:max_input_chars])
+    prompt = f"{_DETAIL_EXTRACT_SYSTEM}\n\nPAGE URL: {url}\nPAGE TITLE: {title}\n\nHTML:\n{content[:max_input_chars]}"
 
     try:
         t0 = time.time()
@@ -743,7 +735,11 @@ def _run_detail_scraper(
         with ThreadPoolExecutor(max_workers=min(workers, len(order))) as pool:
             futures = {pool.submit(_scrape_site, site): site for site in order}
             for future in as_completed(futures):
-                _merge_stats(future.result())
+                site_name = futures[future]
+                try:
+                    _merge_stats(future.result())
+                except Exception as e:
+                    log.error("%s: CRASHED: %s", site_name, e)
     else:
         # Sequential mode (default)
         for site in order:
@@ -751,7 +747,11 @@ def _run_detail_scraper(
             delay = SITE_DELAYS.get(site, 2.0)
             log.info("%s -- %d jobs (delay=%.1fs)", site, len(jobs), delay)
 
-            stats = scrape_site_batch(conn, site, jobs, delay=delay, max_jobs=max_per_site)
+            try:
+                stats = scrape_site_batch(conn, site, jobs, delay=delay, max_jobs=max_per_site)
+            except Exception as e:
+                log.error("%s: CRASHED: %s", site, e)
+                continue
             _merge_stats(stats)
 
             log.info("Site summary: %d ok, %d partial, %d error | T1=%d T2=%d T3=%d",
