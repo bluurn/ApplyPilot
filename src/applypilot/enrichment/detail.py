@@ -880,4 +880,9 @@ def run_enrichment(limit: int = 2000, workers: int = 1) -> dict:
     # Run the detail scraper
     stats = _run_detail_scraper(conn, max_per_site=limit, workers=workers)
 
+    # Re-resolve after scraping: enrichment may have written relative application_urls
+    post_stats = resolve_all_urls(conn)
+    if post_stats["app_resolved"]:
+        log.info("Post-scrape URL resolution: %d application_urls fixed", post_stats["app_resolved"])
+
     return stats

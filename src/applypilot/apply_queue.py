@@ -31,9 +31,11 @@ def _ats_label(url: str | None) -> str:
 
 
 def _clean_url(job: dict) -> str:
-    """Return the best URL to open for applying — prefer application_url but strip LinkedIn redirects."""
+    """Return the best URL to open for applying — prefer application_url but strip redirects and relative URLs."""
     app_url = job.get("application_url") or ""
     job_url = job.get("url") or ""
+    if not app_url.startswith("http"):
+        return job_url
     if "linkedin.com/signup" in app_url or "linkedin.com/authwall" in app_url:
         return job_url
     return app_url or job_url
