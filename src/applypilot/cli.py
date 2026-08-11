@@ -603,6 +603,37 @@ def apply_queue() -> None:
 
 
 @app.command()
+def pipeline(
+    min_score: int = typer.Option(7, "--min-score", help="Minimum fit score for tailor/cover stages."),
+    workers: int = typer.Option(4, "--workers", "-w", min=1, help="Parallel threads for discovery/enrichment stages."),
+    validation: str = typer.Option("normal", "--validation", help="Validation strictness: strict, normal, lenient."),
+    tailor_limit: int = typer.Option(20, "--tailor-limit", help="Max jobs to tailor per run. Use 0 for no limit."),
+) -> None:
+    """Run the full pipeline: discover, enrich, score, tailor, cover, pdf."""
+    _bootstrap()
+
+    from applypilot.config import check_tier
+    check_tier(2, "AI scoring/tailoring")
+
+    valid_modes = ("strict", "normal", "lenient")
+    if validation not in valid_modes:
+        console.print(f"[red]Invalid --validation value:[/red] '{validation}'. Choose from: {', '.join(valid_modes)}")
+        raise typer.Exit(code=1)
+
+    from applypilot.pipeline import run_pipeline
+    result = run_pipeline(
+        stages=["all"],
+        min_score=min_score,
+        workers=workers,
+        validation_mode=validation,
+        tailor_limit=tailor_limit or None,
+    )
+
+    if result.get("errors"):
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def doctor() -> None:
     """Check your setup and diagnose missing requirements."""
     import shutil
