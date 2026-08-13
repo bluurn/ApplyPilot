@@ -16,7 +16,7 @@ def render_pipeline(state: dict, stats: dict) -> str:
     enriched = stats.get("with_description", 0)
     pending_enrich = stats.get("pending_detail", 0)
     scored = stats.get("scored", 0)
-    pending_score = stats.get("unscored", 0)
+    pending_score = stats.get("scoring_candidates", 0)
     tailored = stats.get("tailored", 0)
     pending_tailor = stats.get("untailored_eligible", 0)
     cover = stats.get("with_cover_letter", 0)
