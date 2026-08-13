@@ -1,5 +1,6 @@
 """Local HTTP server for live dashboard and apply-queue views."""
 
+import json
 import os
 import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,14 +29,35 @@ class _Handler(BaseHTTPRequestHandler):
             from applypilot.apply_queue import render_queue
             body = render_queue().encode()
         else:
-            body = b"<h1>404 Not Found</h1>"
-            self.send_response(404)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(body)
+            self._respond(404, b"<h1>404 Not Found</h1>", "text/html; charset=utf-8")
             return
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self._respond(200, body, "text/html; charset=utf-8")
+
+    def do_POST(self):
+        if self.path.split("?")[0] != "/action":
+            self._respond(404, b'{"ok":false}', "application/json")
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length) or b"{}")
+        except json.JSONDecodeError:
+            self._respond(400, b'{"ok":false,"error":"bad json"}', "application/json")
+            return
+        url = data.get("url", "")
+        action = data.get("action", "")
+        if not url or action not in ("applied", "dismissed"):
+            self._respond(400, b'{"ok":false,"error":"bad request"}', "application/json")
+            return
+        from applypilot.apply.launcher import mark_job
+        status = "applied" if action == "applied" else "skip"
+        mark_job(url, status)
+        color = "green" if action == "applied" else "dim"
+        console.print(f"[{color}]{action}: {url[:80]}[/{color}]")
+        self._respond(200, b'{"ok":true}', "application/json")
+
+    def _respond(self, code: int, body: bytes, content_type: str) -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

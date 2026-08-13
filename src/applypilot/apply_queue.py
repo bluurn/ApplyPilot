@@ -74,8 +74,6 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
         cl_text = _read_text(job.get("cover_letter_path"))
         pdf = _pdf_path(job.get("tailored_resume_path"))
         cl_pdf = _pdf_path(job.get("cover_letter_path"))
-        mark_cmd = f"python -m applypilot apply --mark-applied '{url}'"
-        dismiss_cmd = f"python -m applypilot apply --dismiss '{url}'"
         card_id = f"card-{abs(hash(url)) % 100000}"
         tag_html = f'<span class="tag">{tag}</span>' if tag else ""
 
@@ -95,23 +93,21 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
             </div>
             <div class="ats-label">{label}</div>
             {tag_html}
-            <button class="btn-x" title="Dismiss — copies command to clipboard" onclick="dismissCard('{card_id}', this, `{dismiss_cmd}`)">✕</button>
+            <button class="btn-x" title="Dismiss" data-job-url="{url}" onclick="markJob('{card_id}', this.dataset.jobUrl, 'dismissed', this)">✕</button>
           </div>
           <div class="card-body">
             <div class="actions">
               <a class="btn btn-apply" href="{url}" target="_blank">Open Application ↗</a>
               <a class="btn btn-pdf" href="file://{pdf}" target="_blank">Resume PDF ↗</a>
               <a class="btn btn-pdf" href="file://{cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
+              <button class="btn btn-mark-applied" data-job-url="{url}" onclick="markJob('{card_id}', this.dataset.jobUrl, 'applied', this)">Mark Applied ✓</button>
+              <button class="btn btn-dismiss" data-job-url="{url}" onclick="markJob('{card_id}', this.dataset.jobUrl, 'dismissed', this)">Dismiss ✕</button>
             </div>
             {cl_section}
             <div class="section-label">Resume PDF path: <button class="copy-btn" onclick="copyCmd(this, `{pdf}`)">Copy</button></div>
             <div class="cmd-box">{pdf}</div>
             <div class="section-label" style="margin-top:0.6rem">Cover Letter PDF path: <button class="copy-btn" onclick="copyCmd(this, `{cl_pdf}`)">Copy</button></div>
             <div class="cmd-box">{cl_pdf}</div>
-            <div class="section-label" style="margin-top:0.6rem">After applying, mark done: <button class="copy-btn" onclick="copyCmd(this, `{mark_cmd}`)">Copy</button></div>
-            <div class="cmd-box">{mark_cmd}</div>
-            <div class="section-label" style="margin-top:0.6rem">Not a fit? Dismiss: <button class="copy-btn" onclick="copyCmd(this, `{dismiss_cmd}`)">Copy</button></div>
-            <div class="cmd-box" style="color:#f87171">{dismiss_cmd}</div>
           </div>
         </div>"""
 
@@ -127,6 +123,10 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }}
+  .nav {{ display: flex; gap: 0.5rem; margin-bottom: 1.75rem; }}
+  .nav-link {{ font-size: 0.85rem; font-weight: 500; padding: 0.4rem 1rem; border-radius: 6px; text-decoration: none; color: #94a3b8; background: #1e293b; border: 1px solid #334155; transition: all 0.15s; }}
+  .nav-link:hover {{ color: #e2e8f0; border-color: #475569; }}
+  .nav-link.active {{ background: #1e40af; color: #fff; border-color: #3b82f6; }}
   h1 {{ font-size: 1.6rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem; }}
   .subtitle {{ color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; }}
   h2 {{ font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin: 2rem 0 1rem; }}
@@ -143,11 +143,16 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
   .tag {{ font-size: 0.72rem; background: #7c3aed22; border: 1px solid #7c3aed55; color: #a78bfa; padding: 0.2rem 0.5rem; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }}
   .card-body {{ padding: 0 1.25rem 1.1rem; }}
   .actions {{ display: flex; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }}
-  .btn {{ display: inline-block; padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; cursor: pointer; }}
+  .btn {{ display: inline-block; padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; cursor: pointer; border: none; }}
   .btn-apply {{ background: #3b82f6; color: #fff; }}
   .btn-apply:hover {{ background: #2563eb; }}
   .btn-pdf {{ background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb44; }}
   .btn-pdf:hover {{ background: #1e40af22; }}
+  .btn-mark-applied {{ background: #14532d; color: #86efac; border: 1px solid #16a34a44; }}
+  .btn-mark-applied:hover {{ background: #166534; }}
+  .btn-dismiss {{ background: #1e1e2e; color: #f87171; border: 1px solid #ef444444; }}
+  .btn-dismiss:hover {{ background: #2a1a1a; }}
+  .btn:disabled {{ opacity: 0.5; cursor: not-allowed; }}
   .section-label {{ font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }}
   .cl-box {{ width: 100%; height: 220px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #cbd5e1; font-size: 0.8rem; line-height: 1.5; padding: 0.75rem; resize: vertical; margin-bottom: 0.9rem; font-family: inherit; }}
   .copy-btn {{ font-size: 0.7rem; background: #334155; color: #94a3b8; border: none; padding: 0.15rem 0.5rem; border-radius: 4px; cursor: pointer; }}
@@ -163,6 +168,10 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
 </style>
 </head>
 <body>
+<nav class="nav">
+  <a href="/" class="nav-link">Dashboard</a>
+  <a href="/queue" class="nav-link active">Apply Queue</a>
+</nav>
 <h1>ApplyPilot — Apply Queue</h1>
 <p class="subtitle">{total} jobs ready for manual application · sorted by fit score</p>
 
@@ -198,17 +207,33 @@ function copyCmd(btn, text) {{
     setTimeout(() => {{ btn.textContent = 'Copy'; btn.classList.remove('copied'); }}, 2000);
   }});
 }}
-function dismissCard(id, btn, cmd) {{
-  navigator.clipboard.writeText(cmd);
-  const card = document.getElementById(id);
-  btn.textContent = '✓';
-  btn.style.color = '#94a3b8';
-  card.style.transition = 'opacity 0.35s, max-height 0.4s, margin 0.4s';
-  card.style.opacity = '0';
-  card.style.overflow = 'hidden';
-  card.style.maxHeight = card.scrollHeight + 'px';
-  setTimeout(() => {{ card.style.maxHeight = '0'; card.style.marginBottom = '0'; }}, 350);
-  setTimeout(() => {{ card.remove(); }}, 750);
+async function markJob(cardId, url, action, btn) {{
+  btn.disabled = true;
+  try {{
+    const resp = await fetch('/action', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{url, action}})
+    }});
+    const data = await resp.json();
+    if (data.ok) {{
+      if (action === 'applied') {{
+        const done = document.getElementById('cnt-done');
+        done.textContent = parseInt(done.textContent || '0') + 1;
+      }}
+      const card = document.getElementById(cardId);
+      card.style.transition = 'opacity 0.35s, max-height 0.4s, margin 0.4s';
+      card.style.opacity = '0';
+      card.style.overflow = 'hidden';
+      card.style.maxHeight = card.scrollHeight + 'px';
+      setTimeout(() => {{ card.style.maxHeight = '0'; card.style.marginBottom = '0'; }}, 350);
+      setTimeout(() => {{ card.remove(); }}, 750);
+    }} else {{
+      btn.disabled = false;
+    }}
+  }} catch(e) {{
+    btn.disabled = false;
+  }}
 }}
 </script>
 </body>

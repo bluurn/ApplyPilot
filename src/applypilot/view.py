@@ -220,6 +220,11 @@ def render_dashboard() -> str:
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }}
 
+  .nav {{ display: flex; gap: 0.5rem; margin-bottom: 1.75rem; }}
+  .nav-link {{ font-size: 0.85rem; font-weight: 500; padding: 0.4rem 1rem; border-radius: 6px; text-decoration: none; color: #94a3b8; background: #1e293b; border: 1px solid #334155; transition: all 0.15s; }}
+  .nav-link:hover {{ color: #e2e8f0; border-color: #475569; }}
+  .nav-link.active {{ background: #1e40af; color: #fff; border-color: #3b82f6; }}
+
   h1 {{ font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }}
   .subtitle {{ color: #94a3b8; margin-bottom: 2rem; }}
 
@@ -319,6 +324,10 @@ def render_dashboard() -> str:
 </style>
 </head>
 <body>
+<nav class="nav">
+  <a href="/" class="nav-link active">Dashboard</a>
+  <a href="/queue" class="nav-link">Apply Queue</a>
+</nav>
 
 <h1>ApplyPilot Dashboard</h1>
 <p class="subtitle">{total} jobs &middot; {scored} scored &middot; {high_fit} strong matches (7+) &middot; {watchlist_count} watchlist</p>
