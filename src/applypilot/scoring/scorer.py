@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
 from applypilot import config
-from applypilot.config import RESUME_PATH
+from applypilot.config import RESUME_PATH, load_profile
 from applypilot.database import get_connection
 from applypilot.discovery.filters import evaluate_location
 from applypilot.llm import get_client
@@ -259,8 +259,37 @@ def audit_scoring_candidates(conn, search_cfg: dict) -> dict:
 
 # ── Scoring Prompt ────────────────────────────────────────────────────────
 
-# Criteria shared between the direct and BAML paths.
-_SCORE_CRITERIA = """You are a job fit evaluator. Given a candidate's resume and a job description, score how well the candidate fits the role.
+_SCORE_FORMAT = """
+
+RESPOND IN EXACTLY THIS FORMAT (no other text):
+SCORE: [1-10]
+KEYWORDS: [comma-separated ATS keywords from the job description that match or could match the candidate]
+REASONING: [2-3 sentences explaining the score]"""
+
+
+def _build_score_criteria(profile: dict) -> str:
+    """Build the scoring criteria prompt from the user's profile.
+
+    Injects preferred languages, penalty languages, and years of experience from
+    the profile so the prompt stays accurate when the profile changes.
+    """
+    boundary = profile.get("skills_boundary", {})
+    langs = boundary.get("programming_languages", [])
+    lang_str = ", ".join(langs) if isinstance(langs, list) else str(langs)
+    penalty_langs = boundary.get("penalty_languages", [])
+    penalty_str = ", ".join(penalty_langs) if isinstance(penalty_langs, list) else str(penalty_langs)
+    years = str(profile.get("experience", {}).get("years_of_experience_total", "")).strip()
+    years_label = f"{years} years" if years else "many years"
+    penalty_clause = (
+        f"If the job's primary required tech stack is {penalty_str}, reduce the score by 2-3 points"
+        f" -- the candidate's strengths are in {lang_str} and a role centered on these languages"
+        " is a fundamental mismatch. Do not apply this penalty if they appear only as secondary"
+        " tools or nice-to-haves."
+    ) if penalty_str else (
+        "Weight language fit heavily -- penalize roles where the primary stack is outside the"
+        f" candidate's known languages ({lang_str})."
+    )
+    return f"""You are a job fit evaluator. Given a candidate's resume and a job description, score how well the candidate fits the role.
 
 SCORING CRITERIA:
 - 9-10: Perfect match. Candidate has direct experience in nearly all required skills and qualifications.
@@ -274,15 +303,8 @@ IMPORTANT FACTORS:
 - Consider transferable experience (automation, scripting, API work)
 - Factor in the candidate's project experience
 - Be realistic about experience level vs. job requirements (years of experience, seniority)
-- If the job's primary required tech stack is Java, Kotlin, PHP, C#, .NET, SAP, or ABAP, reduce the score by 2-3 points -- the candidate's strengths are in Python/Ruby/Elixir/Go/Rust/TypeScript and a role centered on these languages is a fundamental mismatch. Do not apply this penalty if they appear only as secondary tools or nice-to-haves."""
-
-# Full prompt for the direct (non-BAML) path — includes explicit text format.
-SCORE_PROMPT = _SCORE_CRITERIA + """
-
-RESPOND IN EXACTLY THIS FORMAT (no other text):
-SCORE: [1-10]
-KEYWORDS: [comma-separated ATS keywords from the job description that match or could match the candidate]
-REASONING: [2-3 sentences explaining the score]"""
+- {penalty_clause}
+- LANGUAGE FLEXIBILITY BONUS: If the job description contains explicit language flexibility signals -- phrases like "comfortable learning other languages", "language agnostic", "nice to have" applied to the primary stack, "language of your choice", "stack agnostic", "any language", or framework-level interchangeability (e.g. "Django or FastAPI", "React or Vue") -- do NOT apply any language mismatch penalty, and add +1 point to reflect the candidate's polyglot advantage ({lang_str}, {years_label} total). Mention the flexibility signal explicitly in your keywords field so it's visible in the dashboard."""
 
 
 def _parse_score_response(response: str) -> dict:
@@ -315,12 +337,13 @@ def _parse_score_response(response: str) -> dict:
     return {"score": score, "keywords": keywords, "reasoning": reasoning}
 
 
-def score_job(resume_text: str, job: dict) -> dict:
+def score_job(resume_text: str, job: dict, profile: dict) -> dict:
     """Score a single job against the resume.
 
     Args:
         resume_text: The candidate's full resume text.
         job: Job dict with keys: title, site, location, full_description.
+        profile: User profile dict from load_profile().
 
     Returns:
         {"score": int, "keywords": str, "reasoning": str}
@@ -331,13 +354,14 @@ def score_job(resume_text: str, job: dict) -> dict:
         f"LOCATION: {job.get('location', 'N/A')}\n\n"
         f"DESCRIPTION:\n{(job.get('full_description') or '')[:6000]}"
     )
+    criteria = _build_score_criteria(profile)
 
     try:
         if baml_adapter.enabled():
-            return baml_adapter.score_job(_SCORE_CRITERIA, resume_text, job_text)
+            return baml_adapter.score_job(criteria, resume_text, job_text)
 
         messages = [
-            {"role": "system", "content": SCORE_PROMPT},
+            {"role": "system", "content": criteria + _SCORE_FORMAT},
             {"role": "user", "content": f"RESUME:\n{resume_text}\n\n---\n\nJOB POSTING:\n{job_text}"},
         ]
         client = get_client()
@@ -359,6 +383,7 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
         {"scored": int, "errors": int, "elapsed": float, "distribution": list}
     """
     resume_text = RESUME_PATH.read_text(encoding="utf-8")
+    profile = load_profile()
     conn = get_connection()
     search_cfg = config.load_search_config()
     audit = audit_scoring_candidates(conn, search_cfg)
@@ -433,7 +458,7 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
         if cancel.is_set():
             log.info("Cancellation requested, stopping score stage")
             break
-        result = score_job(resume_text, job)
+        result = score_job(resume_text, job, profile)
         result["url"] = job["url"]
         completed += 1
 

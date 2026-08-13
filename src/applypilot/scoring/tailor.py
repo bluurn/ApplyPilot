@@ -273,17 +273,19 @@ def assemble_resume_text(
         contact_parts.append(personal["linkedin_url"])
     if contact_parts:
         lines.append(" | ".join(contact_parts))
+    country = str(personal.get("country", "")).strip()
     location_parts = [
         str(personal.get("city", "")).strip(),
         str(personal.get("province_state", "")).strip(),
-        str(personal.get("country", "")).strip(),
+        country,
     ]
     location = ", ".join(part for part in location_parts if part)
     authorization = profile.get("work_authorization", {})
     if location or authorization.get("legally_authorized_to_work"):
         header_facts = [location] if location else []
         if authorization.get("legally_authorized_to_work"):
-            header_facts.append("Authorized to work in Germany")
+            auth_text = f"Authorized to work in {country}" if country else "Authorized to work"
+            header_facts.append(auth_text)
         lines.append(" | ".join(header_facts))
     languages = profile.get("languages", "")
     if languages:

@@ -84,7 +84,7 @@ def render_dashboard() -> str:
     colors = {
         "RemoteOK": "#10b981", "WelcomeToTheJungle": "#f59e0b",
         "Job Bank Canada": "#3b82f6", "CareerJet Canada": "#8b5cf6",
-        "Hacker News Jobs": "#ff6600", "BuiltIn Remote": "#ec4899",
+        "Hacker News Jobs": "#ff6600",
         "TD Bank": "#00a651", "CIBC": "#c41f3e", "RBC": "#003168",
         "indeed": "#2164f3", "linkedin": "#0a66c2",
         "Dice": "#eb1c26", "Glassdoor": "#0caa41",

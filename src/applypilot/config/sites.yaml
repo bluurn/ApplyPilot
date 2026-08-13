@@ -127,10 +127,6 @@ sites:
     url: "https://news.ycombinator.com/jobs"
     type: static
 
-  - name: "BuiltIn Remote"
-    url: "https://builtin.com/jobs/remote/dev-engineering"
-    type: static
-
   - name: "Wellfound"
     url: "https://wellfound.com/jobs"
     type: static

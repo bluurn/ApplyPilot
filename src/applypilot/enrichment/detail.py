@@ -499,7 +499,6 @@ SITE_DELAYS = {
     "Job Bank Canada": 1.5,
     "CareerJet Canada": 3.0,
     "Hacker News Jobs": 1.0,
-    "BuiltIn Remote": 2.0,
 }
 
 RETRYABLE_STATUSES = {408, 429, 500, 502, 503, 504}
@@ -709,7 +708,7 @@ def _run_detail_scraper(
         log.info("  %s: %d jobs", site, len(jobs))
 
     known_order = [
-        "RemoteOK", "Job Bank Canada", "BuiltIn Remote",
+        "RemoteOK", "Job Bank Canada",
         "WelcomeToTheJungle", "CareerJet Canada", "Hacker News Jobs",
     ]
     order = [s for s in known_order if s in site_jobs]
