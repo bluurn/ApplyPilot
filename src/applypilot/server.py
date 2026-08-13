@@ -17,6 +17,7 @@ console = Console()
 
 _pipeline_state: dict = {
     "running": False,
+    "stopped": False,
     "logs": [],
     "result": None,
     "started_at": None,
@@ -33,6 +34,8 @@ class _LogCapture(logging.Handler):
 
 
 def _run_pipeline_thread(params: dict) -> None:
+    from applypilot import cancel
+    cancel.clear()
     handler = _LogCapture()
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-5s %(message)s", "%H:%M:%S"))
     logger = logging.getLogger("applypilot")
@@ -42,10 +45,12 @@ def _run_pipeline_thread(params: dict) -> None:
         result = run_pipeline(**params)
         with _pipeline_lock:
             _pipeline_state["result"] = result
+            _pipeline_state["stopped"] = cancel.is_set()
             _pipeline_state["finished_at"] = datetime.now(timezone.utc).isoformat()
     except Exception as exc:
         with _pipeline_lock:
             _pipeline_state["result"] = {"stages": [], "errors": {"run": str(exc)}, "elapsed": 0}
+            _pipeline_state["stopped"] = False
             _pipeline_state["finished_at"] = datetime.now(timezone.utc).isoformat()
     finally:
         logger.removeHandler(handler)
@@ -113,6 +118,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._handle_action(data)
         elif path == "/pipeline/run":
             self._handle_pipeline_run(data)
+        elif path == "/pipeline/stop":
+            self._handle_pipeline_stop()
         else:
             self._respond(404, b'{"ok":false}', "application/json")
 
@@ -129,6 +136,12 @@ class _Handler(BaseHTTPRequestHandler):
         console.print(f"[{color}]{action}: {url[:80]}[/{color}]")
         self._respond(200, b'{"ok":true}', "application/json")
 
+    def _handle_pipeline_stop(self) -> None:
+        from applypilot import cancel
+        cancel.request()
+        console.print("[yellow]Pipeline stop requested[/yellow]")
+        self._respond(200, b'{"ok":true}', "application/json")
+
     def _handle_pipeline_run(self, data: dict) -> None:
         with _pipeline_lock:
             if _pipeline_state["running"]:
@@ -139,6 +152,7 @@ class _Handler(BaseHTTPRequestHandler):
                 )
                 return
             _pipeline_state["running"] = True
+            _pipeline_state["stopped"] = False
             _pipeline_state["logs"] = []
             _pipeline_state["result"] = None
             _pipeline_state["started_at"] = datetime.now(timezone.utc).isoformat()
@@ -165,10 +179,12 @@ class _Handler(BaseHTTPRequestHandler):
         with _pipeline_lock:
             new_logs = list(_pipeline_state["logs"][offset:])
             running = _pipeline_state["running"]
+            stopped = _pipeline_state["stopped"]
             result = _pipeline_state["result"]
             finished_at = _pipeline_state["finished_at"]
         body = json.dumps({
             "running": running,
+            "stopped": stopped,
             "new_logs": new_logs,
             "result": result,
             "finished_at": finished_at,

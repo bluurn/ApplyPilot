@@ -467,7 +467,11 @@ def batch_convert(limit: int = 50) -> int:
 
     log.info("Converting %d files to PDF...", len(to_convert))
     converted = 0
+    from applypilot import cancel
     for f in to_convert:
+        if cancel.is_set():
+            log.info("Cancellation requested, stopping pdf stage")
+            break
         try:
             convert_to_pdf(f)
             converted += 1

@@ -7,6 +7,7 @@ _STAGES = ["discover", "enrich", "score", "tailor", "cover", "pdf"]
 
 def render_pipeline(state: dict, stats: dict) -> str:
     running: bool = state.get("running", False)
+    stopped: bool = state.get("stopped", False)
     logs: list[str] = state.get("logs", [])
     result: dict | None = state.get("result")
     finished_at: str = state.get("finished_at") or ""
@@ -78,8 +79,16 @@ def render_pipeline(state: dict, stats: dict) -> str:
     initial_offset = len(logs)
     is_running_js = "true" if running else "false"
     run_btn_disabled = 'disabled' if running else ''
-    status_text = "Running…" if running else ("Done" if result and not result.get("errors") else ("Error" if result else "Idle"))
-    status_class = "badge-running" if running else ("badge-done" if result and not result.get("errors") else ("badge-error" if result else "badge-idle"))
+    if running:
+        status_text, status_class = "Running…", "badge-running"
+    elif stopped:
+        status_text, status_class = "Stopped", "badge-stopped"
+    elif result and not result.get("errors"):
+        status_text, status_class = "Done", "badge-done"
+    elif result:
+        status_text, status_class = "Error", "badge-error"
+    else:
+        status_text, status_class = "Idle", "badge-idle"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -126,6 +135,10 @@ def render_pipeline(state: dict, stats: dict) -> str:
   .badge-running {{ background: #1d4ed8; color: #fff; animation: pulse 1.5s infinite; }}
   .badge-done    {{ background: #166534; color: #86efac; }}
   .badge-error   {{ background: #7f1d1d; color: #fca5a5; }}
+  .badge-stopped {{ background: #78350f; color: #fcd34d; }}
+  .btn-stop {{ background: #7f1d1d; color: #fca5a5; border: 1px solid #ef444444; border-radius: 8px; padding: 0.55rem 1.25rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; }}
+  .btn-stop:hover {{ background: #991b1b; }}
+  .resume-note {{ font-size: 0.8rem; color: #fcd34d; background: #78350f22; border: 1px solid #78350f; border-radius: 6px; padding: 0.5rem 0.85rem; margin-top: 0.75rem; }}
   @keyframes pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:0.6}} }}
   .badge {{ font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.65rem; border-radius: 99px; }}
 
@@ -187,6 +200,10 @@ def render_pipeline(state: dict, stats: dict) -> str:
       </select>
     </div>
     <button class="btn-run" id="run-btn" {run_btn_disabled} onclick="runPipeline()">Run Pipeline</button>
+    <button class="btn-stop" id="stop-btn" style="display:{'inline-block' if running else 'none'}" onclick="stopPipeline()">Stop</button>
+  </div>
+  <div class="resume-note" id="resume-note" style="display:{'block' if stopped else 'none'}">
+    Stopped after current job. Click Run Pipeline to resume — each stage skips already-processed jobs.
   </div>
 </div>
 
@@ -230,6 +247,8 @@ async function runPipeline() {{
     logOffset = 0;
     setStatus('running');
     document.getElementById('run-btn').disabled = true;
+    document.getElementById('stop-btn').style.display = 'inline-block';
+    document.getElementById('resume-note').style.display = 'none';
     startPolling();
   }} else {{
     alert(data.error || 'Failed to start pipeline');
@@ -247,6 +266,11 @@ function startPolling() {{
   pollTimer = setInterval(poll, 2000);
 }}
 
+async function stopPipeline() {{
+  document.getElementById('stop-btn').disabled = true;
+  await fetch('/pipeline/stop', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}});
+}}
+
 async function poll() {{
   try {{
     const resp = await fetch('/pipeline/state?offset=' + logOffset);
@@ -261,8 +285,16 @@ async function poll() {{
       clearInterval(pollTimer);
       pollTimer = null;
       document.getElementById('run-btn').disabled = false;
-      const hasErrors = data.result && data.result.errors && Object.keys(data.result.errors).length;
-      setStatus(hasErrors ? 'error' : 'done');
+      document.getElementById('stop-btn').style.display = 'none';
+      document.getElementById('stop-btn').disabled = false;
+      if (data.stopped) {{
+        setStatus('stopped');
+        document.getElementById('resume-note').style.display = 'block';
+      }} else {{
+        const hasErrors = data.result && data.result.errors && Object.keys(data.result.errors).length;
+        setStatus(hasErrors ? 'error' : 'done');
+        document.getElementById('resume-note').style.display = 'none';
+      }}
     }}
   }} catch(e) {{
     // network blip, keep polling

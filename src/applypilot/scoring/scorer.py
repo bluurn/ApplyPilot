@@ -428,7 +428,11 @@ def run_scoring(limit: int = 0, rescore: bool = False) -> dict:
     errors = 0
     results: list[dict] = []
 
+    from applypilot import cancel
     for job in jobs:
+        if cancel.is_set():
+            log.info("Cancellation requested, stopping score stage")
+            break
         result = score_job(resume_text, job)
         result["url"] = job["url"]
         completed += 1

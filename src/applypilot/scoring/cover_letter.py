@@ -268,7 +268,11 @@ def run_cover_letters(min_score: int = 7, limit: int = 20,
     results: list[dict] = []
     error_count = 0
 
+    from applypilot import cancel
     for job in jobs:
+        if cancel.is_set():
+            log.info("Cancellation requested, stopping cover stage")
+            break
         completed += 1
         try:
             letter = generate_cover_letter(resume_text, job, profile,

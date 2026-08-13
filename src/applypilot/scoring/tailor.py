@@ -647,7 +647,11 @@ def run_tailoring(min_score: int = 7, limit: int | None = 20,
         "error": 0,
     }
 
+    from applypilot import cancel
     for job in jobs:
+        if cancel.is_set():
+            log.info("Cancellation requested, stopping tailor stage")
+            break
         completed += 1
         try:
             tailored, report = tailor_resume(resume_text, job, profile,

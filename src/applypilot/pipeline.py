@@ -400,7 +400,11 @@ def _run_sequential(
     errors: dict[str, str] = {}
     pipeline_start = time.time()
 
+    from applypilot import cancel
     for name in ordered:
+        if cancel.is_set():
+            log.info("Pipeline cancelled before stage: %s", name)
+            break
         meta = STAGE_META[name]
         console.print(f"\n{'=' * 70}")
         console.print(f"  [bold]STAGE: {name}[/bold] — {meta['desc']}")

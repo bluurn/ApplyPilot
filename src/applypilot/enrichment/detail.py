@@ -621,7 +621,11 @@ def scrape_site_batch(
             context = browser.new_context(user_agent=UA)
             page = context.new_page()
 
+            from applypilot import cancel
             for i, (url, title) in enumerate(jobs):
+                if cancel.is_set():
+                    log.info("Cancellation requested, stopping enrich stage")
+                    break
                 log.info("[%d/%d] %s", i + 1, len(jobs), title[:50] if title else url[:50])
 
                 result = scrape_detail_page(page, url)
