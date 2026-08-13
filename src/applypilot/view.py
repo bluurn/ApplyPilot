@@ -327,6 +327,7 @@ def render_dashboard() -> str:
 <nav class="nav">
   <a href="/" class="nav-link active">Dashboard</a>
   <a href="/queue" class="nav-link">Apply Queue</a>
+  <a href="/pipeline" class="nav-link">Pipeline</a>
 </nav>
 
 <h1>ApplyPilot Dashboard</h1>

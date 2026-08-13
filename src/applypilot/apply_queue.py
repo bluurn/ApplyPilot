@@ -171,6 +171,7 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
 <nav class="nav">
   <a href="/" class="nav-link">Dashboard</a>
   <a href="/queue" class="nav-link active">Apply Queue</a>
+  <a href="/pipeline" class="nav-link">Pipeline</a>
 </nav>
 <h1>ApplyPilot — Apply Queue</h1>
 <p class="subtitle">{total} jobs ready for manual application · sorted by fit score</p>
