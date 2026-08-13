@@ -24,26 +24,29 @@ def render_pipeline(state: dict, stats: dict) -> str:
     pending_cover = max(tailored - cover, 0)
     ready = stats.get("ready_to_apply", 0)
 
-    def funnel_box(label: str, count: int, pending: int = 0, color: str = "#60a5fa") -> str:
-        pend_html = f'<div class="f-pending">{pending} pending</div>' if pending else ""
+    def funnel_box(label: str, count: int, pending: int = 0, color: str = "#60a5fa", key: str = "") -> str:
+        if pending:
+            pend_html = f'<div class="f-pending" id="f-{key}-pend">{pending} pending</div>'
+        else:
+            pend_html = f'<div class="f-pending" id="f-{key}-pend" style="display:none">0 pending</div>'
         return f"""<div class="f-box">
           <div class="f-label" style="color:{color}">{label}</div>
-          <div class="f-count">{count:,}</div>
+          <div class="f-count" id="f-{key}-count">{count:,}</div>
           {pend_html}
         </div>"""
 
     funnel_html = (
-        funnel_box("Total", total, color="#94a3b8")
+        funnel_box("Total", total, color="#94a3b8", key="total")
         + '<div class="f-arrow">→</div>'
-        + funnel_box("Enriched", enriched, pending_enrich)
+        + funnel_box("Enriched", enriched, pending_enrich, key="enriched")
         + '<div class="f-arrow">→</div>'
-        + funnel_box("Scored", scored, pending_score, "#f59e0b")
+        + funnel_box("Scored", scored, pending_score, "#f59e0b", key="scored")
         + '<div class="f-arrow">→</div>'
-        + funnel_box("Tailored", tailored, pending_tailor, "#10b981")
+        + funnel_box("Tailored", tailored, pending_tailor, "#10b981", key="tailored")
         + '<div class="f-arrow">→</div>'
-        + funnel_box("Cover Letters", cover, pending_cover, "#a78bfa")
+        + funnel_box("Cover Letters", cover, pending_cover, "#a78bfa", key="cover")
         + '<div class="f-arrow">→</div>'
-        + funnel_box("Ready to Apply", ready, color="#22c55e")
+        + funnel_box("Ready to Apply", ready, color="#22c55e", key="ready")
     )
 
     # --- last run result ---
@@ -166,7 +169,7 @@ def render_pipeline(state: dict, stats: dict) -> str:
 {funnel_html}
 </div>
 
-{last_run_html}
+<div id="last-run-section">{last_run_html}</div>
 
 <div class="run-panel" style="margin-bottom:1.5rem">
   <div class="panel-title">
@@ -271,6 +274,39 @@ async function stopPipeline() {{
   await fetch('/pipeline/stop', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: '{{}}'}});
 }}
 
+function updateFunnel(s) {{
+  function set(key, count, pending) {{
+    const c = document.getElementById('f-' + key + '-count');
+    const p = document.getElementById('f-' + key + '-pend');
+    if (c) c.textContent = count.toLocaleString();
+    if (p) {{ p.textContent = pending + ' pending'; p.style.display = pending > 0 ? '' : 'none'; }}
+  }}
+  const pendCover = Math.max((s.tailored || 0) - (s.with_cover_letter || 0), 0);
+  set('total',    s.total || 0, 0);
+  set('enriched', s.with_description || 0, s.pending_detail || 0);
+  set('scored',   s.scored || 0, s.scoring_candidates || 0);
+  set('tailored', s.tailored || 0, s.untailored_eligible || 0);
+  set('cover',    s.with_cover_letter || 0, pendCover);
+  set('ready',    s.ready_to_apply || 0, 0);
+}}
+
+function renderLastRun(result, finishedAt) {{
+  if (!result || !result.stages || !result.stages.length) return;
+  const ts = finishedAt ? finishedAt.slice(0, 19).replace('T', ' ') : '';
+  const rows = result.stages.map(s => {{
+    const col = s.status === 'ok' ? '#22c55e' : (s.status === 'partial' ? '#f59e0b' : '#f87171');
+    return `<tr><td>${{s.stage}}</td><td style="color:${{col}}">${{s.status}}</td><td>${{(s.elapsed||0).toFixed(1)}}s</td></tr>`;
+  }}).join('');
+  document.getElementById('last-run-section').innerHTML = `
+    <div class="panel" style="margin-bottom:1.5rem">
+      <div class="panel-title">Last Run <span class="ts">${{ts}}</span></div>
+      <table class="result-table">
+        <thead><tr><th>Stage</th><th>Status</th><th>Elapsed</th></tr></thead>
+        <tbody>${{rows}}</tbody>
+      </table>
+    </div>`;
+}}
+
 async function poll() {{
   try {{
     const resp = await fetch('/pipeline/state?offset=' + logOffset);
@@ -281,12 +317,14 @@ async function poll() {{
       pre.textContent += data.new_logs.join('\\n') + '\\n';
       pre.scrollTop = pre.scrollHeight;
     }}
+    if (data.stats) updateFunnel(data.stats);
     if (!data.running) {{
       clearInterval(pollTimer);
       pollTimer = null;
       document.getElementById('run-btn').disabled = false;
       document.getElementById('stop-btn').style.display = 'none';
       document.getElementById('stop-btn').disabled = false;
+      renderLastRun(data.result, data.finished_at);
       if (data.stopped) {{
         setStatus('stopped');
         document.getElementById('resume-note').style.display = 'block';

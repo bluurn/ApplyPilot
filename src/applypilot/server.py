@@ -182,12 +182,14 @@ class _Handler(BaseHTTPRequestHandler):
             stopped = _pipeline_state["stopped"]
             result = _pipeline_state["result"]
             finished_at = _pipeline_state["finished_at"]
+        from applypilot.database import get_stats
         body = json.dumps({
             "running": running,
             "stopped": stopped,
             "new_logs": new_logs,
             "result": result,
             "finished_at": finished_at,
+            "stats": get_stats(),
         }).encode()
         self._respond(200, body, "application/json")
 
