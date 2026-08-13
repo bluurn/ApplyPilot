@@ -215,7 +215,8 @@ function dismissCard(id, btn, cmd) {{
 </html>"""
 
 
-def main() -> None:
+def render_queue() -> str:
+    """Return the apply-queue HTML string (no file I/O)."""
     conn = get_connection()
 
     ready = [dict(r) for r in conn.execute("""
@@ -242,11 +243,28 @@ def main() -> None:
         ORDER BY fit_score DESC
     """).fetchall()]
 
-    html = build_html(ready, manual)
+    return build_html(ready, manual)
+
+
+def main() -> None:
+    conn = get_connection()
+    ready_count = conn.execute("""
+        SELECT COUNT(*) FROM jobs
+        WHERE tailored_resume_path IS NOT NULL AND cover_letter_path IS NOT NULL
+          AND eligibility_allowed = 1 AND fit_score >= 7
+          AND (apply_status IS NULL OR (apply_status = 'failed' AND apply_attempts < 99))
+          AND apply_status IS NOT 'skip'
+    """).fetchone()[0]
+    manual_count = conn.execute("""
+        SELECT COUNT(*) FROM jobs
+        WHERE company = 'Grafana Labs' AND apply_status = 'manual'
+          AND tailored_resume_path IS NOT NULL AND cover_letter_path IS NOT NULL
+    """).fetchone()[0]
+    html = render_queue()
     out = config.APP_DIR / "apply_queue.html"
     out.write_text(html, encoding="utf-8")
     console.print(f"[green]Apply queue written to {out}[/green]")
-    console.print(f"  {len(ready)} ready jobs + {len(manual)} Grafana Labs (email verify)")
+    console.print(f"  {ready_count} ready jobs + {manual_count} Grafana Labs (email verify)")
     console.print(f"  [dim]file://{out}[/dim]")
 
     try:

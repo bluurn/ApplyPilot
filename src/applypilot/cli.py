@@ -603,6 +603,18 @@ def apply_queue() -> None:
 
 
 @app.command()
+def serve(
+    port: int = typer.Option(7777, "--port", "-p", help="Port to listen on."),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host/IP to bind."),
+    no_open: bool = typer.Option(False, "--no-open", help="Don't open browser automatically."),
+) -> None:
+    """Start a local HTTP server for live dashboard and apply queue (refresh to update)."""
+    _bootstrap()
+    from applypilot.server import run_server
+    run_server(host=host, port=port, open_browser=not no_open)
+
+
+@app.command()
 def pipeline(
     min_score: int = typer.Option(7, "--min-score", help="Minimum fit score for tailor/cover stages."),
     workers: int = typer.Option(4, "--workers", "-w", min=1, help="Parallel threads for discovery/enrichment stages."),

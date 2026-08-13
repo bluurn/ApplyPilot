@@ -24,17 +24,8 @@ from applypilot.scoring.ranking import explain_signals
 console = Console()
 
 
-def generate_dashboard(output_path: str | None = None) -> str:
-    """Generate an HTML dashboard of all jobs with fit scores.
-
-    Args:
-        output_path: Where to write the HTML file. Defaults to ~/.applypilot/dashboard.html.
-
-    Returns:
-        Absolute path to the generated HTML file.
-    """
-    out = Path(output_path) if output_path else APP_DIR / "dashboard.html"
-
+def render_dashboard() -> str:
+    """Return the dashboard HTML string (no file I/O)."""
     conn = get_connection()
 
     # Stats
@@ -424,9 +415,15 @@ window.addEventListener('resize', syncSitesHeight);
 </body>
 </html>"""
 
+    return html
+
+
+def generate_dashboard(output_path: str | None = None) -> str:
+    """Generate HTML dashboard, write to file, and return the absolute path."""
+    out = Path(output_path) if output_path else APP_DIR / "dashboard.html"
+    html = render_dashboard()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
-
     abs_path = str(out.resolve())
     console.print(f"[green]Dashboard written to {abs_path}[/green]")
     return abs_path
