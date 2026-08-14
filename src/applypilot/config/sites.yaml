@@ -122,6 +122,23 @@ sites:
     url: "https://4dayweek.io/remote-jobs/software-engineer"
     type: static
 
+  # EU / Germany-focused
+  - name: "Arbeitnow"
+    url: "https://arbeitnow.com/jobs"
+    type: static
+
+  - name: "EuropeRemotely"
+    url: "https://europeremotely.com/jobs"
+    type: static
+
+  - name: "No Fluff Jobs"
+    url: "https://nofluffjobs.com/en/jobs"
+    type: static
+
+  - name: "Berlin Startup Jobs"
+    url: "https://berlinstartupjobs.com"
+    type: static
+
   # General tech
   - name: "Hacker News Jobs"
     url: "https://news.ycombinator.com/jobs"

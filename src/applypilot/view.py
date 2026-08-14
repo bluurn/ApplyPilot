@@ -85,6 +85,8 @@ def render_dashboard() -> str:
         "RemoteOK": "#10b981", "WelcomeToTheJungle": "#f59e0b",
         "Job Bank Canada": "#3b82f6", "CareerJet Canada": "#8b5cf6",
         "Hacker News Jobs": "#ff6600",
+        "Arbeitnow": "#2563eb", "EuropeRemotely": "#16a34a",
+        "No Fluff Jobs": "#7c3aed", "Berlin Startup Jobs": "#dc2626",
         "TD Bank": "#00a651", "CIBC": "#c41f3e", "RBC": "#003168",
         "indeed": "#2164f3", "linkedin": "#0a66c2",
         "Dice": "#eb1c26", "Glassdoor": "#0caa41",

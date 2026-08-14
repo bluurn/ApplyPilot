@@ -239,13 +239,30 @@ def _scrape_sources(
     for site in sites:
         location = gd_location if site == "glassdoor" else search["location"]
         country = search.get("country_indeed") or defaults.get("country_indeed", "usa")
-        # LinkedIn's API geo-detects the client IP to pick a country, so passing
-        # "Europe" as a location string can resolve to an unsupported country
-        # (e.g. Kazakhstan when behind a VPN). The config uses "Worldwide"
-        # directly; this guard stays as a fallback for hand-edited configs.
-        if site == "linkedin" and location.casefold() == "europe":
-            location = "Worldwide"
-            country = "worldwide"
+        # LinkedIn only accepts a fixed set of country strings. VPN exit nodes
+        # can cause geo-detection to resolve to an unsupported country (e.g.
+        # Iceland, Kazakhstan). Fall back to "worldwide" for any unsupported value.
+        _LINKEDIN_VALID_COUNTRIES = {
+            "argentina", "australia", "austria", "bahrain", "bangladesh",
+            "belgium", "bulgaria", "brazil", "canada", "chile", "china",
+            "colombia", "costa rica", "croatia", "cyprus", "czech republic",
+            "czechia", "denmark", "ecuador", "egypt", "estonia", "finland",
+            "france", "germany", "greece", "hong kong", "hungary", "india",
+            "indonesia", "ireland", "israel", "italy", "japan", "kuwait",
+            "latvia", "lithuania", "luxembourg", "malaysia", "malta", "mexico",
+            "morocco", "netherlands", "new zealand", "nigeria", "norway",
+            "oman", "pakistan", "panama", "peru", "philippines", "poland",
+            "portugal", "qatar", "romania", "saudi arabia", "singapore",
+            "slovakia", "slovenia", "south africa", "south korea", "spain",
+            "sweden", "switzerland", "taiwan", "thailand", "türkiye", "turkey",
+            "ukraine", "united arab emirates", "uk", "united kingdom",
+            "usa", "us", "united states", "uruguay", "venezuela", "vietnam",
+            "usa/ca", "worldwide",
+        }
+        if site == "linkedin":
+            if location.casefold() == "europe" or country.casefold() not in _LINKEDIN_VALID_COUNTRIES:
+                location = "Worldwide"
+                country = "worldwide"
         kwargs = {
             "site_name": [site],
             "search_term": search["query"],
