@@ -45,7 +45,6 @@ def _read_text(path: str | None) -> str:
     if not path:
         return ""
     p = Path(path)
-    # Cover letters stored as _CL.txt
     if p.exists():
         return p.read_text(encoding="utf-8").strip()
     return ""

@@ -5,14 +5,13 @@ postings. All personal data (name, skills, achievements) comes from the user's
 profile at runtime. No hardcoded personal information.
 """
 
-import json
 import logging
 import re
 import time
 from datetime import datetime, timezone
 
 from applypilot.config import COVER_LETTER_DIR, RESUME_PATH, load_profile
-from applypilot.database import get_connection, get_jobs_by_stage
+from applypilot.database import get_connection
 from applypilot.llm import get_client
 from applypilot.scoring import baml_adapter
 from applypilot.scoring.validator import (
@@ -26,13 +25,45 @@ log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5  # max cross-run retries before giving up
 
+_LANG_NAMES: dict[str, str] = {
+    "de": "German", "fr": "French", "es": "Spanish",
+    "nl": "Dutch", "pl": "Polish", "it": "Italian", "pt": "Portuguese",
+}
+
+
+# ── Language Detection ────────────────────────────────────────────────────
+
+def _detect_language(text: str) -> str:
+    """Detect the language of a job posting via a cheap single-shot LLM call.
+
+    Returns an ISO 639-1 code ("en", "de", "fr", ...). Falls back to "en" on
+    any error or ambiguous result.
+    """
+    if not text:
+        return "en"
+    client = get_client()
+    try:
+        result = client.chat([
+            {"role": "user", "content": (
+                "What language is this text written in? "
+                "Reply with only the ISO 639-1 code (e.g. 'en', 'de', 'fr'):\n\n"
+                + text[:800]
+            )},
+        ], max_tokens=5, temperature=0.0)
+        code = re.sub(r"[^a-z]", "", result.strip().lower())[:2]
+        return code if len(code) == 2 else "en"
+    except Exception:
+        return "en"
+
 
 # ── Prompt Builder (profile-driven) ──────────────────────────────────────
 
-def _build_cover_letter_prompt(profile: dict) -> str:
+def _build_cover_letter_prompt(profile: dict, lang: str = "en") -> str:
     """Build the cover letter system prompt from the user's profile.
 
     All personal data, skills, and sign-off name come from the profile.
+    Pass lang (ISO 639-1) to generate a non-English letter when the job
+    posting is in another language.
     """
     personal = profile.get("personal", {})
     boundary = profile.get("skills_boundary", {})
@@ -63,46 +94,67 @@ def _build_cover_letter_prompt(profile: dict) -> str:
         metrics_hint = f"\nReal metrics to use: {', '.join(real_metrics)}"
 
     # Build the full banned list from the validator so the prompt stays in sync
-    # with what will actually be rejected — the validator checks all of these.
+    # with what will actually be rejected -- the validator checks all of these.
+    # For non-English letters the banned word check is skipped, but keep the list
+    # in the prompt as a quality guide anyway.
     all_banned = ", ".join(f'"{w}"' for w in BANNED_WORDS)
     leak_banned = ", ".join(f'"{p}"' for p in LLM_LEAK_PHRASES)
 
+    lang_name = _LANG_NAMES.get(lang, "English") if lang != "en" else "English"
+    word_limit = "300" if lang != "en" else "250"
+
+    if lang == "en":
+        greeting_instruction = 'Start DIRECTLY with "Dear Hiring Manager," and end with the full name.'
+        signoff_block = f"Close with exactly these two lines, after a blank line:\nBest regards,\n{sign_off_name}"
+        language_block = ""
+    else:
+        greeting_instruction = (
+            f'Start DIRECTLY with the appropriate formal {lang_name} greeting '
+            f'(e.g. for German: "Sehr geehrte Damen und Herren,"). End with the full name.'
+        )
+        signoff_block = (
+            f"Close with a professional {lang_name} sign-off followed by a blank line and the full name:\n"
+            f"{sign_off_name}"
+        )
+        language_block = (
+            f"\n\nLANGUAGE: This job posting is in {lang_name}. Write the ENTIRE cover letter in {lang_name}. "
+            f"Use {lang_name} professional conventions for greeting, phrasing, and sign-off. "
+            "Do not mix languages."
+        )
+
     return f"""Write a cover letter for {sign_off_name}. The goal is to get an interview.
 
-STRUCTURE: 3 short paragraphs. Under 250 words. Every sentence must earn its place.
+STRUCTURE: 3 short paragraphs. Under {word_limit} words. Every sentence must earn its place.
 
 PARAGRAPH 1 (3-4 sentences): After the greeting, briefly introduce yourself and name the role you are applying for. Add one specific reason the company's product or problem is relevant to your background, then connect it to a concrete thing YOU built that solves THEIR problem. Avoid generic openings such as "I'm excited about this role" or "This role aligns with my experience."
 
 PARAGRAPH 2 (3-4 sentences): Pick 2 achievements from the resume that are MOST relevant to THIS job. Use numbers ONLY if they appear verbatim in the resume -- do NOT invent percentages, ratios, or quantities (e.g. never write "30% reduction" unless that exact figure is in the resume). Frame as solving their problem, not listing your accomplishments.{projects_hint}{metrics_hint}
 
-PARAGRAPH 3 (1-2 sentences): One specific thing about the company from the job description (a product, a technical challenge, a team structure). Then close. "Happy to walk through any of this in more detail." or "Let's discuss." Nothing else.
+PARAGRAPH 3 (1-2 sentences): One specific thing about the company from the job description (a product, a technical challenge, a team structure). Then close. Nothing else.
 
-BANNED WORDS AND PHRASES (automated validator rejects ANY of these — do not use even once):
+BANNED WORDS AND PHRASES (do not use even once):
 {all_banned}
 
-ALSO BANNED (meta-commentary the validator catches):
+ALSO BANNED (meta-commentary):
 {leak_banned}
 
-BANNED PUNCTUATION: No em dashes (—) or en dashes (–). Use commas or periods.
+BANNED PUNCTUATION: No em dashes (--) or en dashes. Use commas or periods.
 
 VOICE:
 - Write like a real engineer emailing someone they respect. Not formal, not casual. Just direct.
 - NEVER narrate or explain what you're doing. BAD: "This demonstrates my commitment to X." GOOD: Just state the fact and move on.
 - NEVER hedge. BAD: "might address some of your challenges." GOOD: "solves the same problem your team is facing."
 - Every sentence should contain either a number, a tool name, or a specific outcome. If it doesn't, cut it.
-- Read it out loud. If it sounds like a robot wrote it, rewrite it.
 
 FABRICATION = INSTANT REJECTION:
 The candidate's real tools are ONLY: {skills_str}.
 Do NOT mention ANY tool not in this list. If the job asks for tools not listed, talk about the work you did, not the tools.
 Do NOT invent any numbers, percentages, or metrics that are not explicitly stated in the resume. If the resume says "led a team of five", you may use "five". If no metric exists, describe the outcome qualitatively.
 
-Close with exactly these two lines, after a blank line:
-Best regards,
-{sign_off_name}
+{signoff_block}
 
 Output ONLY the letter text. No subject lines. No "Here is the cover letter:" preamble. No notes after the sign-off.
-Start DIRECTLY with "Dear Hiring Manager," and end with the full name."""
+{greeting_instruction}{language_block}"""
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -120,29 +172,42 @@ def _strip_preamble(text: str) -> str:
     return text
 
 
-def _ensure_signoff(text: str, profile: dict) -> str:
-    """Normalize the closing so every letter uses the same professional sign-off."""
+def _ensure_signoff(text: str, profile: dict, lang: str = "en") -> str:
+    """Normalize the closing sign-off.
+
+    For English letters, enforces "Best regards,\n{name}".
+    For non-English letters, trusts the LLM's sign-off phrase and only ensures
+    the candidate's name appears on the final line.
+    """
     personal = profile.get("personal", {})
     full_name = personal.get("full_name") or personal.get("preferred_name", "")
     if not full_name:
         return text.rstrip()
 
     lines = text.rstrip().splitlines()
+    # Remove duplicate name line at the end (LLM sometimes repeats it)
     if lines and lines[-1].strip().casefold() in {
         full_name.casefold(),
         str(personal.get("preferred_name", "")).casefold(),
     }:
         lines.pop()
-    if lines and lines[-1].strip().rstrip(",:").casefold() in {
-        "best regards",
-        "kind regards",
-        "regards",
-        "sincerely",
-        "yours sincerely",
-    }:
-        lines.pop()
-    body = "\n".join(lines).rstrip()
-    return f"{body}\n\nBest regards,\n{full_name}"
+
+    if lang == "en":
+        # Strip any English sign-off phrase and replace with the canonical form
+        if lines and lines[-1].strip().rstrip(",:").casefold() in {
+            "best regards",
+            "kind regards",
+            "regards",
+            "sincerely",
+            "yours sincerely",
+        }:
+            lines.pop()
+        body = "\n".join(lines).rstrip()
+        return f"{body}\n\nBest regards,\n{full_name}"
+    else:
+        # Trust the LLM's language-appropriate sign-off; just ensure name is at end
+        body = "\n".join(lines).rstrip()
+        return f"{body}\n{full_name}"
 
 
 # ── Core Generation ──────────────────────────────────────────────────────
@@ -173,10 +238,16 @@ def generate_cover_letter(
         f"DESCRIPTION:\n{(job.get('full_description') or '')[:6000]}"
     )
 
+    # Detect language once before the retry loop (cheap single-shot call)
+    lang = _detect_language(job.get("full_description", ""))
+    if lang != "en":
+        log.info("Job posting detected as %s -- generating cover letter in %s",
+                 lang, _LANG_NAMES.get(lang, lang))
+
     avoid_notes: list[str] = []
     letter = ""
     client = get_client()
-    cl_prompt_base = _build_cover_letter_prompt(profile)
+    cl_prompt_base = _build_cover_letter_prompt(profile, lang=lang)
 
     for attempt in range(max_retries + 1):
         # Fresh conversation every attempt
@@ -204,10 +275,11 @@ def generate_cover_letter(
         else:
             letter = client.chat(messages, max_tokens=1024, temperature=0.7)
         letter = sanitize_text(letter)  # auto-fix em dashes, smart quotes
-        letter = _strip_preamble(letter)  # remove any "Here is the letter:" prefix
-        letter = _ensure_signoff(letter, profile)
+        if lang == "en":
+            letter = _strip_preamble(letter)  # only relevant for English "Dear" check
+        letter = _ensure_signoff(letter, profile, lang=lang)
 
-        validation = validate_cover_letter(letter, mode=validation_mode)
+        validation = validate_cover_letter(letter, mode=validation_mode, lang=lang)
         if validation["passed"]:
             return letter
 
@@ -279,12 +351,17 @@ def run_cover_letters(min_score: int = 7, limit: int = 20,
             letter = generate_cover_letter(resume_text, job, profile,
                                           validation_mode=validation_mode)
 
-            # Build safe filename prefix
+            # Build per-job subfolder with clean recruiter-visible filenames
+            personal = profile.get("personal", {})
+            full_name = personal.get("full_name") or personal.get("preferred_name", "")
+            name_slug = re.sub(r"\s+", "_", full_name).strip() if full_name else "Cover_Letter"
+
             safe_title = re.sub(r"[^\w\s-]", "", job["title"])[:50].strip().replace(" ", "_")
             safe_site = re.sub(r"[^\w\s-]", "", job["site"])[:20].strip().replace(" ", "_")
-            prefix = f"{safe_site}_{safe_title}"
+            subfolder = COVER_LETTER_DIR / f"{safe_site}_{safe_title}"
+            subfolder.mkdir(parents=True, exist_ok=True)
 
-            cl_path = COVER_LETTER_DIR / f"{prefix}_CL.txt"
+            cl_path = subfolder / f"{name_slug}_Cover_Letter.txt"
             cl_path.write_text(letter, encoding="utf-8")
 
             # Generate PDF (best-effort)

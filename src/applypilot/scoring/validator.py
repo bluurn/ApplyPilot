@@ -419,7 +419,7 @@ def validate_tailored_resume(text: str, profile: dict, original_text: str = "") 
 
 # ── Cover Letter Validation ──────────────────────────────────────────────
 
-def validate_cover_letter(text: str, mode: str = "normal") -> dict:
+def validate_cover_letter(text: str, mode: str = "normal", lang: str = "en") -> dict:
     """Programmatic validation of a cover letter.
 
     Args:
@@ -440,8 +440,8 @@ def validate_cover_letter(text: str, mode: str = "normal") -> dict:
     if "\u2014" in text or "\u2013" in text:
         errors.append("Contains em dash or en dash.")
 
-    # 2. Banned words — severity depends on mode
-    if mode != "lenient":
+    # 2. Banned words -- English-specific; skip for non-English letters
+    if lang == "en" and mode != "lenient":
         found = [w for w in BANNED_WORDS if re.search(r"\b" + re.escape(w) + r"\b", text_lower)]
         if found:
             msg = f"Banned words: {', '.join(found[:5])}"
@@ -450,22 +450,25 @@ def validate_cover_letter(text: str, mode: str = "normal") -> dict:
             else:  # normal
                 warnings.append(msg)
 
-    # 3. Word count
+    # 3. Word count -- non-English (e.g. German) runs wordier; allow extra overhead
     words = len(text.split())
-    if mode == "strict" and words > 250:
-        errors.append(f"Too long ({words} words). Max 250.")
-    elif mode == "normal" and words > 275:
-        warnings.append(f"Long ({words} words). Target 250.")
+    limit = 250 if lang == "en" else 300
+    soft_limit = limit + 25
+    if mode == "strict" and words > limit:
+        errors.append(f"Too long ({words} words). Max {limit}.")
+    elif mode == "normal" and words > soft_limit:
+        warnings.append(f"Long ({words} words). Target {limit}.")
     # lenient: no word count check
 
-    # 4. LLM self-talk — always an error regardless of mode
+    # 4. LLM self-talk -- always an error regardless of mode or language
     found_leaks = [p for p in LLM_LEAK_PHRASES if p in text_lower]
     if found_leaks:
         errors.append(f"LLM self-talk: '{found_leaks[0]}'")
 
-    # 5. Must start with "Dear" — always checked (preamble should have been stripped)
-    stripped = text.strip()
-    if not stripped.lower().startswith("dear"):
-        errors.append("Must start with 'Dear Hiring Manager,'")
+    # 5. Must start with "Dear" -- English only; non-English use language-appropriate greetings
+    if lang == "en":
+        stripped = text.strip()
+        if not stripped.lower().startswith("dear"):
+            errors.append("Must start with 'Dear Hiring Manager,'")
 
     return {"passed": len(errors) == 0, "errors": errors, "warnings": warnings}
