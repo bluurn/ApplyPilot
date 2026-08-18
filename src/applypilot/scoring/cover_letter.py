@@ -73,7 +73,7 @@ STRUCTURE: 3 short paragraphs. Under 250 words. Every sentence must earn its pla
 
 PARAGRAPH 1 (3-4 sentences): After the greeting, briefly introduce yourself and name the role you are applying for. Add one specific reason the company's product or problem is relevant to your background, then connect it to a concrete thing YOU built that solves THEIR problem. Avoid generic openings such as "I'm excited about this role" or "This role aligns with my experience."
 
-PARAGRAPH 2 (3-4 sentences): Pick 2 achievements from the resume that are MOST relevant to THIS job. Use numbers. Frame as solving their problem, not listing your accomplishments.{projects_hint}{metrics_hint}
+PARAGRAPH 2 (3-4 sentences): Pick 2 achievements from the resume that are MOST relevant to THIS job. Use numbers ONLY if they appear verbatim in the resume -- do NOT invent percentages, ratios, or quantities (e.g. never write "30% reduction" unless that exact figure is in the resume). Frame as solving their problem, not listing your accomplishments.{projects_hint}{metrics_hint}
 
 PARAGRAPH 3 (1-2 sentences): One specific thing about the company from the job description (a product, a technical challenge, a team structure). Then close. "Happy to walk through any of this in more detail." or "Let's discuss." Nothing else.
 
@@ -95,6 +95,7 @@ VOICE:
 FABRICATION = INSTANT REJECTION:
 The candidate's real tools are ONLY: {skills_str}.
 Do NOT mention ANY tool not in this list. If the job asks for tools not listed, talk about the work you did, not the tools.
+Do NOT invent any numbers, percentages, or metrics that are not explicitly stated in the resume. If the resume says "led a team of five", you may use "five". If no metric exists, describe the outcome qualitatively.
 
 Close with exactly these two lines, after a blank line:
 Best regards,
