@@ -130,7 +130,7 @@ PARAGRAPH 1 (3-4 sentences): After the greeting, briefly introduce yourself and 
 
 PARAGRAPH 2 (3-4 sentences): Pick 2 achievements from the resume that are MOST relevant to THIS job. Use numbers ONLY if they appear verbatim in the resume -- do NOT invent percentages, ratios, or quantities (e.g. never write "30% reduction" unless that exact figure is in the resume). Frame as solving their problem, not listing your accomplishments.{projects_hint}{metrics_hint}
 
-PARAGRAPH 3 (1-2 sentences): One specific thing about the company from the job description (a product, a technical challenge, a team structure). Then close. Nothing else.
+PARAGRAPH 3 (1-2 sentences): One specific detail taken VERBATIM or closely paraphrased from the job description provided below -- a named product, a stated technical challenge, or a team detail explicitly mentioned. Do NOT draw on your training-data knowledge of the company; if it is not in the job description text, do not write it.
 
 BANNED WORDS AND PHRASES (do not use even once):
 {all_banned}
@@ -279,7 +279,8 @@ def generate_cover_letter(
             letter = _strip_preamble(letter)  # only relevant for English "Dear" check
         letter = _ensure_signoff(letter, profile, lang=lang)
 
-        validation = validate_cover_letter(letter, mode=validation_mode, lang=lang)
+        validation = validate_cover_letter(letter, mode=validation_mode, lang=lang,
+                                           job_text=job_text)
         if validation["passed"]:
             return letter
 

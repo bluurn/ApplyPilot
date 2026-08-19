@@ -419,7 +419,38 @@ def validate_tailored_resume(text: str, profile: dict, original_text: str = "") 
 
 # ── Cover Letter Validation ──────────────────────────────────────────────
 
-def validate_cover_letter(text: str, mode: str = "normal", lang: str = "en") -> dict:
+_STOPWORDS = {
+    "the", "and", "for", "your", "with", "that", "this", "have",
+    "from", "their", "which", "will", "they", "been", "also",
+    "about", "i", "my", "our", "we", "you", "are", "is", "it",
+    "as", "at", "by", "be", "an", "to", "of", "in", "on", "or",
+    "not", "but", "can", "more", "very", "both", "each", "there",
+}
+
+
+def _check_p3_grounding(letter: str, job_text: str, warnings: list) -> None:
+    """Warn if paragraph 3's distinctive words don't appear in the job description."""
+    lines = letter.rstrip().splitlines()
+    body_lines = lines[:-3] if len(lines) > 3 else lines
+    paragraphs = "\n".join(body_lines).strip().split("\n\n")
+    last_para = paragraphs[-1].strip() if paragraphs else ""
+    if not last_para:
+        return
+    words = re.findall(r"[a-z]{5,}", last_para.lower())
+    distinctive = [w for w in words if w not in _STOPWORDS]
+    if not distinctive:
+        return
+    job_lower = job_text.lower()
+    hits = sum(1 for w in distinctive if w in job_lower)
+    if hits < 2:
+        warnings.append(
+            f"Paragraph 3 may not be grounded in the job description "
+            f"({hits}/{len(distinctive)} distinctive words found in posting)"
+        )
+
+
+def validate_cover_letter(text: str, mode: str = "normal", lang: str = "en",
+                          job_text: str = "") -> dict:
     """Programmatic validation of a cover letter.
 
     Args:
@@ -470,5 +501,9 @@ def validate_cover_letter(text: str, mode: str = "normal", lang: str = "en") -> 
         stripped = text.strip()
         if not stripped.lower().startswith("dear"):
             errors.append("Must start with 'Dear Hiring Manager,'")
+
+    # 6. Paragraph 3 grounding -- soft check when job_text is provided
+    if job_text:
+        _check_p3_grounding(text, job_text, warnings)
 
     return {"passed": len(errors) == 0, "errors": errors, "warnings": warnings}
