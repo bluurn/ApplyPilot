@@ -43,6 +43,9 @@ def render_dashboard() -> str:
     watchlist_count = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE is_watchlist = 1"
     ).fetchone()[0]
+    applied_count = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE applied_at IS NOT NULL"
+    ).fetchone()[0]
 
     # Score distribution
     score_dist: dict[int, int] = {}
@@ -72,7 +75,8 @@ def render_dashboard() -> str:
         SELECT url, title, salary, description, location, site, company,
                is_watchlist, watchlist_name, strategy,
                full_description, application_url, detail_error,
-               fit_score, score_reasoning, discovery_score, discovery_signals
+               fit_score, score_reasoning, discovery_score, discovery_signals,
+               applied_at, apply_status
         FROM jobs
         WHERE (fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0)
           AND eligibility_allowed IS NOT 0
@@ -190,12 +194,20 @@ def render_dashboard() -> str:
             )
         meta_html = " ".join(meta_parts)
 
-        apply_html = ""
-        if apply_url:
-            apply_html = f'<a href="{apply_url}" class="apply-link" target="_blank">Apply</a>'
+        applied_at = j["applied_at"]
+        applied_date = (applied_at or "")[:10]
+
+        url_js = escape(j["url"] or "").replace("'", "\\'")
+        if applied_at:
+            apply_html = f'<span class="applied-badge">Applied {applied_date}</span>'
+        else:
+            apply_html = ""
+            if apply_url:
+                apply_html += f'<a href="{apply_url}" class="apply-link" target="_blank">Apply</a>'
+            apply_html += f'<button class="reject-btn" onclick="rejectJob(this, \'{url_js}\')">Reject</button>'
 
         job_sections += f"""
-        <div class="job-card" data-score="{score}" data-site="{escape(j['site'] or '')}" data-location="{location.lower()}" data-watchlist="{int(bool(j['is_watchlist']))}">
+        <div class="job-card" data-score="{score}" data-site="{escape(j['site'] or '')}" data-location="{location.lower()}" data-watchlist="{int(bool(j['is_watchlist']))}" data-applied="{1 if applied_at else 0}">
           <div class="card-header">
             <span class="score-pill" style="background:{'#10b981' if score >= 7 else '#f59e0b'}">{score}</span>
             <a href="{url}" class="job-title" target="_blank">{title}</a>
@@ -239,6 +251,7 @@ def render_dashboard() -> str:
   .stat-scored .stat-num {{ color: #60a5fa; }}
   .stat-high .stat-num {{ color: #f59e0b; }}
   .stat-total .stat-num {{ color: #e2e8f0; }}
+  .stat-applied .stat-num {{ color: #86efac; }}
 
   /* Filters */
   .filters {{ background: #1e293b; border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }}
@@ -303,9 +316,13 @@ def render_dashboard() -> str:
 
   .desc-preview {{ font-size: 0.8rem; color: #64748b; line-height: 1.5; margin-bottom: 0.75rem; max-height: 3.6em; overflow: hidden; }}
 
-  .card-footer {{ display: flex; justify-content: flex-end; }}
   .apply-link {{ font-size: 0.8rem; color: #60a5fa; text-decoration: none; padding: 0.3rem 0.8rem; border: 1px solid #60a5fa33; border-radius: 6px; font-weight: 500; }}
   .apply-link:hover {{ background: #60a5fa22; }}
+  .applied-badge {{ font-size: 0.8rem; color: #86efac; background: #14532d44; border: 1px solid #14532d; border-radius: 6px; padding: 0.3rem 0.8rem; font-weight: 500; }}
+  .job-card[data-applied="1"] {{ opacity: 0.6; }}
+  .reject-btn {{ font-size: 0.8rem; color: #f87171; background: transparent; border: 1px solid #f8717133; border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer; font-weight: 500; margin-left: 0.5rem; }}
+  .reject-btn:hover {{ background: #f8717122; }}
+  .card-footer {{ display: flex; justify-content: flex-end; align-items: center; gap: 0.25rem; }}
 
   /* Expandable full description */
   .full-desc-details {{ margin-bottom: 0.75rem; }}
@@ -341,6 +358,7 @@ def render_dashboard() -> str:
   <div class="stat-card stat-scored"><div class="stat-num">{scored}</div><div class="stat-label">Scored by LLM</div></div>
   <div class="stat-card stat-high"><div class="stat-num">{high_fit}</div><div class="stat-label">Strong Fit (7+)</div></div>
   <div class="stat-card stat-high"><div class="stat-num">{watchlist_count}</div><div class="stat-label">Watchlist Jobs</div></div>
+  <div class="stat-card stat-applied"><div class="stat-num">{applied_count}</div><div class="stat-label">Applied</div></div>
 </div>
 
 <div class="filters">
@@ -349,6 +367,8 @@ def render_dashboard() -> str:
   <button class="filter-btn" onclick="filterScore(7)">7+ Strong</button>
   <button class="filter-btn" onclick="filterScore(8)">8+ Excellent</button>
   <button class="filter-btn" onclick="filterScore(9)">9+ Perfect</button>
+  <span class="filter-label" style="margin-left:1rem">Applied:</span>
+  <button class="filter-btn active" id="btn-hide-applied" onclick="toggleApplied()">Hide Applied</button>
   <span class="filter-label" style="margin-left:1rem">Search:</span>
   <input type="text" class="search-input" placeholder="Filter by title, site..." oninput="filterText(this.value)">
 </div>
@@ -371,16 +391,25 @@ def render_dashboard() -> str:
 <script>
 let minScore = 0;
 let searchText = '';
+let hideApplied = true;
 
 function filterScore(min) {{
   minScore = min;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-btn[onclick^="filterScore"]').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
   applyFilters();
 }}
 
 function filterText(text) {{
   searchText = text.toLowerCase();
+  applyFilters();
+}}
+
+function toggleApplied() {{
+  hideApplied = !hideApplied;
+  const btn = document.getElementById('btn-hide-applied');
+  btn.classList.toggle('active', hideApplied);
+  btn.textContent = hideApplied ? 'Hide Applied' : 'Show Applied';
   applyFilters();
 }}
 
@@ -391,9 +420,11 @@ function applyFilters() {{
     total++;
     const score = parseInt(card.dataset.score) || 0;
     const text = card.textContent.toLowerCase();
+    const applied = card.dataset.applied === '1';
     const scoreMatch = score >= (minScore || 5);
     const textMatch = !searchText || text.includes(searchText);
-    if (scoreMatch && textMatch) {{
+    const appliedMatch = !hideApplied || !applied;
+    if (scoreMatch && textMatch && appliedMatch) {{
       card.classList.remove('hidden');
       shown++;
     }} else {{
@@ -414,6 +445,27 @@ function applyFilters() {{
 }}
 
 applyFilters();
+
+async function rejectJob(btn, url) {{
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {{
+    const resp = await fetch('/action', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{url, action: 'dismissed'}}),
+    }});
+    if ((await resp.json()).ok) {{
+      btn.closest('.job-card').classList.add('hidden');
+    }} else {{
+      btn.disabled = false;
+      btn.textContent = 'Reject';
+    }}
+  }} catch(e) {{
+    btn.disabled = false;
+    btn.textContent = 'Reject';
+  }}
+}}
 
 function syncSitesHeight() {{
   const dist = document.querySelector('.score-dist');
