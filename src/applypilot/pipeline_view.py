@@ -100,7 +100,9 @@ def render_pipeline(state: dict, stats: dict) -> str:
 <title>ApplyPilot — Pipeline</title>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }}
+  html, body {{ height: 100%; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; overflow: hidden; padding: 2rem; display: flex; flex-direction: column; }}
+  .above-log {{ flex: 0 1 auto; overflow-y: auto; }}
   .nav {{ display: flex; gap: 0.5rem; margin-bottom: 1.75rem; }}
   .nav-link {{ font-size: 0.85rem; font-weight: 500; padding: 0.4rem 1rem; border-radius: 6px; text-decoration: none; color: #94a3b8; background: #1e293b; border: 1px solid #334155; transition: all 0.15s; }}
   .nav-link:hover {{ color: #e2e8f0; border-color: #475569; }}
@@ -151,11 +153,12 @@ def render_pipeline(state: dict, stats: dict) -> str:
   .result-table td {{ padding: 0.35rem 0.5rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; }}
 
   /* Log panel */
-  .log-panel {{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1rem 1.25rem; }}
-  .log-pre {{ font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.75rem; color: #94a3b8; background: #0f172a; border-radius: 6px; padding: 0.75rem; height: 340px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 0.75rem; }}
+  .log-panel {{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1rem 1.25rem; flex: 1 0 200px; display: flex; flex-direction: column; min-height: 0; margin-top: 1.5rem; }}
+  .log-pre {{ font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.75rem; color: #94a3b8; background: #0f172a; border-radius: 6px; padding: 0.75rem; flex: 1; min-height: 0; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 0.75rem; }}
 </style>
 </head>
 <body>
+<div class="above-log">
 <nav class="nav">
   <a href="/" class="nav-link">Dashboard</a>
   <a href="/queue" class="nav-link">Apply Queue</a>
@@ -208,6 +211,7 @@ def render_pipeline(state: dict, stats: dict) -> str:
   <div class="resume-note" id="resume-note" style="display:{'block' if stopped else 'none'}">
     Stopped after current job. Click Run Pipeline to resume — each stage skips already-processed jobs.
   </div>
+</div>
 </div>
 
 <div class="log-panel">
