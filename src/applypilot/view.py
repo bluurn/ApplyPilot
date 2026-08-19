@@ -173,6 +173,10 @@ def render_dashboard() -> str:
         full_desc_html = escape(j["full_description"] or "").replace("\n", "<br>")
         desc_len = len(j["full_description"] or "")
 
+        applied_at = j["applied_at"]
+        applied_date = (applied_at or "")[:10]
+        apply_status = j["apply_status"] or ""
+
         meta_parts = []
         meta_parts.append(
             f'<span class="meta-tag site-tag" style="background:{site_color}33;color:{site_color}">{site}</span>'
@@ -192,10 +196,16 @@ def render_dashboard() -> str:
                 '<span class="meta-tag rank">Rank '
                 f'{j["discovery_score"]:g}</span>'
             )
+        _status_styles = {
+            "applied": ("meta-tag status-applied", "Applied"),
+            "skip":    ("meta-tag status-skip",    "Skipped"),
+            "manual":  ("meta-tag status-manual",  "Manual"),
+            "failed":  ("meta-tag status-failed",  "Failed"),
+        }
+        if apply_status in _status_styles:
+            cls, label = _status_styles[apply_status]
+            meta_parts.append(f'<span class="{cls}">{label}</span>')
         meta_html = " ".join(meta_parts)
-
-        applied_at = j["applied_at"]
-        applied_date = (applied_at or "")[:10]
 
         url_js = escape(j["url"] or "").replace("'", "\\'")
         if applied_at:
@@ -309,6 +319,10 @@ def render_dashboard() -> str:
   .meta-tag.location {{ background: #1e3a5f; color: #93c5fd; }}
   .meta-tag.watchlist {{ background: #713f12; color: #fde68a; }}
   .meta-tag.rank {{ background: #3b0764; color: #d8b4fe; }}
+  .meta-tag.status-applied {{ background: #14532d44; color: #86efac; }}
+  .meta-tag.status-skip    {{ background: #1e293b; color: #475569; border: 1px solid #334155; }}
+  .meta-tag.status-manual  {{ background: #78350f33; color: #fbbf24; }}
+  .meta-tag.status-failed  {{ background: #7f1d1d33; color: #f87171; }}
 
   .keywords-row {{ font-size: 0.75rem; color: #10b981; margin-bottom: 0.3rem; line-height: 1.4; }}
   .reasoning-row {{ font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-style: italic; line-height: 1.4; }}
