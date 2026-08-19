@@ -95,9 +95,9 @@ def _run_enqueue_thread(url: str) -> None:
     except Exception as exc:
         log.error("Enqueue cover letter failed for %s: %s", url[:80], exc)
 
-    # un-skip so the job enters the queue
+    # clear enqueuing/skip so the job enters the queue
     conn.execute(
-        "UPDATE jobs SET apply_status=NULL WHERE url=? AND apply_status='skip'", (url,)
+        "UPDATE jobs SET apply_status=NULL WHERE url=?", (url,)
     )
     conn.commit()
     console.print(f"[green]Enqueued:[/green] {job['title'][:60]}")
@@ -233,6 +233,10 @@ class _Handler(BaseHTTPRequestHandler):
         if not url:
             self._respond(400, b'{"ok":false,"error":"missing url"}', "application/json")
             return
+        from applypilot.database import get_connection
+        conn = get_connection()
+        conn.execute("UPDATE jobs SET apply_status='enqueuing' WHERE url=?", (url,))
+        conn.commit()
         thread = threading.Thread(target=_run_enqueue_thread, args=(url,), daemon=True)
         thread.start()
         self._respond(200, b'{"ok":true}', "application/json")

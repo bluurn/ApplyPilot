@@ -83,6 +83,13 @@ def render_dashboard() -> str:
         WHERE (fit_score >= 5 OR is_watchlist = 1 OR discovery_score > 0)
           AND eligibility_allowed IS NOT 0
           AND duplicate_of IS NULL
+          AND apply_status IS NOT 'enqueuing'
+          AND NOT (
+            tailored_resume_path IS NOT NULL
+            AND cover_letter_path IS NOT NULL
+            AND apply_status IS NOT 'applied'
+            AND apply_status IS NOT 'skip'
+          )
         ORDER BY fit_score DESC NULLS LAST, is_watchlist DESC, discovery_score DESC, site, title
     """).fetchall()
 
