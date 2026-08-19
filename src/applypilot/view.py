@@ -39,6 +39,7 @@ def render_dashboard() -> str:
     ).fetchone()[0]
     high_fit = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE fit_score >= 7"
+        " AND eligibility_allowed IS NOT 0 AND duplicate_of IS NULL"
     ).fetchone()[0]
     watchlist_count = conn.execute(
         "SELECT COUNT(*) FROM jobs WHERE is_watchlist = 1"
@@ -53,6 +54,7 @@ def render_dashboard() -> str:
         rows = conn.execute(
             "SELECT fit_score, COUNT(*) FROM jobs "
             "WHERE fit_score IS NOT NULL "
+            "AND eligibility_allowed IS NOT 0 AND duplicate_of IS NULL "
             "GROUP BY fit_score ORDER BY fit_score DESC"
         ).fetchall()
         for r in rows:
