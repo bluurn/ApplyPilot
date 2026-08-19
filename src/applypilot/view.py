@@ -156,8 +156,6 @@ def render_dashboard() -> str:
         location = escape(j["location"] or "")
         site = escape(j["site"] or "")
         site_color = colors.get(j["site"] or "", "#6b7280")
-        apply_url = escape(j["application_url"] or "")
-
         # Parse keywords and reasoning from score_reasoning
         reasoning_raw = j["score_reasoning"] or ""
         reasoning_lines = reasoning_raw.split("\n")
@@ -210,11 +208,13 @@ def render_dashboard() -> str:
         url_js = escape(j["url"] or "").replace("'", "\\'")
         if applied_at:
             apply_html = f'<span class="applied-badge">Applied {applied_date}</span>'
+        elif score >= 7:
+            apply_html = (
+                f'<button class="enqueue-btn" onclick="enqueueJob(this, \'{url_js}\')">Enqueue</button>'
+                f'<button class="reject-btn" onclick="rejectJob(this, \'{url_js}\')">Reject</button>'
+            )
         else:
-            apply_html = ""
-            if apply_url:
-                apply_html += f'<a href="{apply_url}" class="apply-link" target="_blank">Apply</a>'
-            apply_html += f'<button class="reject-btn" onclick="rejectJob(this, \'{url_js}\')">Reject</button>'
+            apply_html = f'<button class="reject-btn" onclick="rejectJob(this, \'{url_js}\')">Reject</button>'
 
         job_sections += f"""
         <div class="job-card" data-score="{score}" data-site="{escape(j['site'] or '')}" data-location="{location.lower()}" data-watchlist="{int(bool(j['is_watchlist']))}" data-applied="{1 if applied_at else 0}">
@@ -330,10 +330,11 @@ def render_dashboard() -> str:
 
   .desc-preview {{ font-size: 0.8rem; color: #64748b; line-height: 1.5; margin-bottom: 0.75rem; max-height: 3.6em; overflow: hidden; }}
 
-  .apply-link {{ font-size: 0.8rem; color: #60a5fa; text-decoration: none; padding: 0.3rem 0.8rem; border: 1px solid #60a5fa33; border-radius: 6px; font-weight: 500; }}
-  .apply-link:hover {{ background: #60a5fa22; }}
   .applied-badge {{ font-size: 0.8rem; color: #86efac; background: #14532d44; border: 1px solid #14532d; border-radius: 6px; padding: 0.3rem 0.8rem; font-weight: 500; }}
   .job-card[data-applied="1"] {{ opacity: 0.6; }}
+  .enqueue-btn {{ font-size: 0.8rem; color: #60a5fa; background: transparent; border: 1px solid #60a5fa33; border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer; font-weight: 500; }}
+  .enqueue-btn:hover {{ background: #60a5fa22; }}
+  .enqueue-btn:disabled {{ opacity: 0.5; cursor: not-allowed; }}
   .reject-btn {{ font-size: 0.8rem; color: #f87171; background: transparent; border: 1px solid #f8717133; border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer; font-weight: 500; margin-left: 0.5rem; }}
   .reject-btn:hover {{ background: #f8717122; }}
   .card-footer {{ display: flex; justify-content: flex-end; align-items: center; gap: 0.25rem; }}
@@ -459,6 +460,25 @@ function applyFilters() {{
 }}
 
 applyFilters();
+
+async function enqueueJob(btn, url) {{
+  btn.disabled = true;
+  btn.textContent = 'Queuing…';
+  try {{
+    const resp = await fetch('/job/enqueue', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{url}}),
+    }});
+    if (!(await resp.json()).ok) {{
+      btn.textContent = 'Enqueue';
+      btn.disabled = false;
+    }}
+  }} catch(e) {{
+    btn.textContent = 'Enqueue';
+    btn.disabled = false;
+  }}
+}}
 
 async function rejectJob(btn, url) {{
   btn.disabled = true;

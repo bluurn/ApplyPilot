@@ -12,6 +12,96 @@ from urllib.parse import parse_qs, urlparse
 from rich.console import Console
 
 console = Console()
+log = logging.getLogger(__name__)
+
+
+# --- single-job enqueue ---
+
+def _run_enqueue_thread(url: str) -> None:
+    """Re-generate tailored resume + cover letter for one job and add it to the queue."""
+    import re
+    from applypilot.config import COVER_LETTER_DIR, RESUME_PATH, TAILORED_DIR, load_profile
+    from applypilot.database import get_connection
+    from applypilot.scoring.cover_letter import generate_cover_letter
+    from applypilot.scoring.tailor import tailor_resume
+
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM jobs WHERE url = ?", (url,)).fetchone()
+    if not row:
+        log.error("Enqueue: job not found: %s", url[:80])
+        return
+    job = dict(row)
+
+    profile = load_profile()
+    resume_text = RESUME_PATH.read_text(encoding="utf-8")
+
+    personal = profile.get("personal", {})
+    full_name = personal.get("full_name") or personal.get("preferred_name", "")
+    name_slug = re.sub(r"\s+", "_", full_name).strip() if full_name else "CV"
+    safe_title = re.sub(r"[^\w\s-]", "", job["title"])[:50].strip().replace(" ", "_")
+    safe_site  = re.sub(r"[^\w\s-]", "", job["site"])[:20].strip().replace(" ", "_")
+    now = datetime.now(timezone.utc).isoformat()
+
+    # --- tailor resume ---
+    try:
+        tailored, report = tailor_resume(resume_text, job, profile)
+        sub = TAILORED_DIR / f"{safe_site}_{safe_title}"
+        sub.mkdir(parents=True, exist_ok=True)
+        txt_path = sub / f"{name_slug}_CV.txt"
+        txt_path.write_text(tailored, encoding="utf-8")
+        job_desc = (
+            f"Title: {job['title']}\nCompany: {job['site']}\n"
+            f"URL: {job['url']}\n\n{job.get('full_description', '')}"
+        )
+        (sub / "_JOB.txt").write_text(job_desc, encoding="utf-8")
+        (sub / "_REPORT.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        pdf_path = None
+        if report.get("status") == "approved":
+            try:
+                from applypilot.scoring.pdf import convert_to_pdf
+                pdf_path = str(convert_to_pdf(txt_path))
+            except Exception:
+                pass
+        conn.execute(
+            "UPDATE jobs SET tailored_resume_path=?, tailored_at=?, "
+            "tailor_attempts=COALESCE(tailor_attempts,0)+1 WHERE url=?",
+            (str(txt_path), now, url),
+        )
+        conn.commit()
+        job = dict(conn.execute("SELECT * FROM jobs WHERE url=?", (url,)).fetchone())
+        log.info("Enqueue tailor done: %s", job["title"][:60])
+    except Exception as exc:
+        log.error("Enqueue tailor failed for %s: %s", url[:80], exc)
+        return
+
+    # --- cover letter ---
+    try:
+        letter = generate_cover_letter(resume_text, job, profile)
+        sub = COVER_LETTER_DIR / f"{safe_site}_{safe_title}"
+        sub.mkdir(parents=True, exist_ok=True)
+        cl_path = sub / f"{name_slug}_Cover_Letter.txt"
+        cl_path.write_text(letter, encoding="utf-8")
+        try:
+            from applypilot.scoring.pdf import convert_to_pdf
+            convert_to_pdf(cl_path)
+        except Exception:
+            pass
+        conn.execute(
+            "UPDATE jobs SET cover_letter_path=?, cover_letter_at=?, "
+            "cover_attempts=COALESCE(cover_attempts,0)+1 WHERE url=?",
+            (str(cl_path), now, url),
+        )
+        log.info("Enqueue cover letter done: %s", job["title"][:60])
+    except Exception as exc:
+        log.error("Enqueue cover letter failed for %s: %s", url[:80], exc)
+
+    # un-skip so the job enters the queue
+    conn.execute(
+        "UPDATE jobs SET apply_status=NULL WHERE url=? AND apply_status='skip'", (url,)
+    )
+    conn.commit()
+    console.print(f"[green]Enqueued:[/green] {job['title'][:60]}")
+
 
 # --- pipeline run state ---
 
@@ -116,6 +206,8 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/action":
             self._handle_action(data)
+        elif path == "/job/enqueue":
+            self._handle_job_enqueue(data)
         elif path == "/pipeline/run":
             self._handle_pipeline_run(data)
         elif path == "/pipeline/stop":
@@ -134,6 +226,15 @@ class _Handler(BaseHTTPRequestHandler):
         mark_job(url, status)
         color = "green" if action == "applied" else "dim"
         console.print(f"[{color}]{action}: {url[:80]}[/{color}]")
+        self._respond(200, b'{"ok":true}', "application/json")
+
+    def _handle_job_enqueue(self, data: dict) -> None:
+        url = data.get("url", "")
+        if not url:
+            self._respond(400, b'{"ok":false,"error":"missing url"}', "application/json")
+            return
+        thread = threading.Thread(target=_run_enqueue_thread, args=(url,), daemon=True)
+        thread.start()
         self._respond(200, b'{"ok":true}', "application/json")
 
     def _handle_pipeline_stop(self) -> None:
