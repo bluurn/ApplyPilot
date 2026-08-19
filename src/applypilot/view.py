@@ -472,7 +472,9 @@ async function enqueueJob(btn, url) {{
       headers: {{'Content-Type': 'application/json'}},
       body: JSON.stringify({{url}}),
     }});
-    if (!(await resp.json()).ok) {{
+    if ((await resp.json()).ok) {{
+      btn.closest('.job-card').classList.add('hidden');
+    }} else {{
       btn.textContent = 'Enqueue';
       btn.disabled = false;
     }}
