@@ -84,6 +84,7 @@ def render_dashboard() -> str:
           AND eligibility_allowed IS NOT 0
           AND duplicate_of IS NULL
           AND apply_status IS NOT 'enqueuing'
+          AND apply_status IS NOT 'skip'
           AND NOT (
             tailored_resume_path IS NOT NULL
             AND cover_letter_path IS NOT NULL
