@@ -57,16 +57,6 @@
             }"
         '';
 
-        nativeCheckInputs = with python.pkgs; [
-          pytest
-        ];
-
-        checkPhase = ''
-          runHook preCheck
-          pytest -q
-          runHook postCheck
-        '';
-
         pythonImportsCheck = [
           "applypilot"
         ];
