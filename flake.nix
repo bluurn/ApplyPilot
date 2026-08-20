@@ -27,6 +27,7 @@
           jobspy
           pandas
           playwright
+          pydantic
           pyyaml
           python-dotenv
           rich
@@ -93,5 +94,16 @@
         program = "${applypilot}/bin/applypilot";
       };
 
+      # NixOS module — add to your configuration.nix inputs then:
+      #   programs.applypilot.enable = true;
+      nixosModules.default =
+        { config, lib, ... }:
+        {
+          options.programs.applypilot.enable = lib.mkEnableOption "ApplyPilot job-search automation";
+
+          config = lib.mkIf config.programs.applypilot.enable {
+            environment.systemPackages = [ applypilot ];
+          };
+        };
     };
 }
