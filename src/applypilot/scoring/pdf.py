@@ -409,7 +409,12 @@ def convert_to_pdf(
     """
     text_path = Path(text_path)
     text = text_path.read_text(encoding="utf-8")
-    if text_path.name.endswith("_CL.txt"):
+    is_cover = (
+        text_path.name.endswith("_CL.txt")
+        or text_path.name.endswith("_Cover_Letter.txt")
+        or COVER_LETTER_DIR in text_path.parents
+    )
+    if is_cover:
         html = build_cover_letter_html(text)
     else:
         resume = parse_resume(text)
@@ -446,10 +451,10 @@ def batch_convert(limit: int = 50) -> int:
         return 0
 
     resume_txts = [
-        f for f in sorted(TAILORED_DIR.glob("*.txt"))
-        if not f.name.endswith("_JOB.txt")
+        f for f in sorted(TAILORED_DIR.rglob("*.txt"))
+        if not f.name.endswith("_JOB.txt") and "_REPORT" not in f.name
     ]
-    cover_txts = sorted(COVER_LETTER_DIR.glob("*_CL.txt")) if COVER_LETTER_DIR.exists() else []
+    cover_txts = sorted(COVER_LETTER_DIR.rglob("*.txt")) if COVER_LETTER_DIR.exists() else []
     candidates = resume_txts + cover_txts
 
     # Filter to those without a corresponding PDF
