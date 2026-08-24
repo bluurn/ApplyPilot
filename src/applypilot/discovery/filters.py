@@ -16,7 +16,16 @@ def title_is_excluded(title: str | None, patterns: list[str]) -> bool:
     if not title:
         return False
     normalized = title.casefold()
-    return any(pattern.casefold() in normalized for pattern in patterns if pattern)
+    for pattern in patterns:
+        if not pattern:
+            continue
+        p = pattern.casefold().strip()
+        if " " in p:
+            if p in normalized:
+                return True
+        elif re.search(rf"(?<![a-z0-9]){re.escape(p)}(?![a-z0-9])", normalized):
+            return True
+    return False
 
 
 def company_is_excluded(company: str | None, patterns: list[str]) -> bool:
