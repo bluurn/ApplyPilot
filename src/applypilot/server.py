@@ -7,7 +7,8 @@ import subprocess
 import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
 from rich.console import Console
 
@@ -171,6 +172,10 @@ class _Handler(BaseHTTPRequestHandler):
             self._handle_pipeline_state(qs)
             return
 
+        if path == "/file":
+            self._handle_file(qs)
+            return
+
         route = _GET_ROUTES.get(path)
         if route == "dashboard":
             from applypilot.view import render_dashboard
@@ -297,6 +302,30 @@ class _Handler(BaseHTTPRequestHandler):
             "stats": get_stats(),
         }).encode()
         self._respond(200, body, "application/json")
+
+    def _handle_file(self, qs: dict) -> None:
+        from applypilot.config import APP_DIR
+        raw = qs.get("path", [""])[0]
+        if not raw:
+            self._respond(400, b"missing path", "text/plain")
+            return
+        requested = Path(unquote(raw)).resolve()
+        allowed_root = APP_DIR.resolve()
+        if not str(requested).startswith(str(allowed_root) + "/"):
+            self._respond(403, b"forbidden", "text/plain")
+            return
+        if not requested.is_file():
+            self._respond(404, b"not found", "text/plain")
+            return
+        suffix = requested.suffix.lower()
+        content_type = "application/pdf" if suffix == ".pdf" else "application/octet-stream"
+        data = requested.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", f'inline; filename="{requested.name}"')
+        self.end_headers()
+        self.wfile.write(data)
 
     def _respond(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)

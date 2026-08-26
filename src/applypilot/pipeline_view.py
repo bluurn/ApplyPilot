@@ -187,7 +187,7 @@ def render_pipeline(state: dict, stats: dict) -> str:
   <div class="run-row">
     <div class="form-group">
       <label class="form-label">Min score</label>
-      <input class="form-input" type="number" id="min-score" value="7" min="1" max="10">
+      <input class="form-input" type="number" id="min-score" value="6" min="1" max="10">
     </div>
     <div class="form-group">
       <label class="form-label">Workers</label>
@@ -238,7 +238,7 @@ function getStages() {{
 async function runPipeline() {{
   const body = {{
     stages: getStages(),
-    min_score: parseInt(document.getElementById('min-score').value) || 7,
+    min_score: parseInt(document.getElementById('min-score').value) || 6,
     workers: parseInt(document.getElementById('workers').value) || 4,
     tailor_limit: parseInt(document.getElementById('tailor-limit').value) || 20,
     validation: document.getElementById('validation').value,

@@ -97,8 +97,8 @@ def build_html(ready: list[dict], manual: list[dict]) -> str:
           <div class="card-body">
             <div class="actions">
               <a class="btn btn-apply" href="{url}" target="_blank">Open Application ↗</a>
-              <a class="btn btn-pdf" href="file://{pdf}" target="_blank">Resume PDF ↗</a>
-              <a class="btn btn-pdf" href="file://{cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
+              <a class="btn btn-pdf" href="/file?path={pdf}" target="_blank">Resume PDF ↗</a>
+              <a class="btn btn-pdf" href="/file?path={cl_pdf}" target="_blank">Cover Letter PDF ↗</a>
               <button class="btn btn-mark-applied" data-job-url="{url}" onclick="markJob('{card_id}', this.dataset.jobUrl, 'applied', this)">Mark Applied ✓</button>
               <button class="btn btn-dismiss" data-job-url="{url}" onclick="markJob('{card_id}', this.dataset.jobUrl, 'dismissed', this)">Dismiss ✕</button>
             </div>
