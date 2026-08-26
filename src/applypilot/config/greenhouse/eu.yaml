@@ -29,6 +29,10 @@ boards:
     name: "Contentful"
     token: "contentful"
 
+  freenow:
+    name: "FREENOW"
+    token: "freenow"
+
   sumup:
     name: "SumUp"
     token: "sumup"

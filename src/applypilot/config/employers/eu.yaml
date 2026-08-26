@@ -2,6 +2,12 @@
 # Each portal was verified against an active European listing.
 
 employers:
+  zeiss:
+    name: "Carl Zeiss AG"
+    tenant: "zeissgroup"
+    site_id: "External"
+    base_url: "https://zeissgroup.wd3.myworkdayjobs.com"
+
   redhat:
     name: "Red Hat"
     tenant: "redhat"
