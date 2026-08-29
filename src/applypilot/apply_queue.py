@@ -36,7 +36,7 @@ def _clean_url(job: dict) -> str:
     job_url = job.get("url") or ""
     if not app_url.startswith("http"):
         return job_url
-    if "linkedin.com/signup" in app_url or "linkedin.com/authwall" in app_url:
+    if "linkedin.com/signup" in app_url or "linkedin.com/authwall" in app_url or "linkedin.com/login" in app_url:
         return job_url
     return app_url or job_url
 
